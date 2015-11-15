@@ -1,7 +1,7 @@
 /******************************************************************
- * File:        RequestManager.java
+ * File:        QueueManager.java
  * Created by:  Dave Reynolds
- * Created on:  11 Nov 2015
+ * Created on:  13 Nov 2015
  * 
  * (c) Copyright 2015, Epimorphics Limited
  *
@@ -12,20 +12,11 @@ package com.epimorphics.armlib;
 import java.util.List;
 
 /**
- * Provides and interface for how client applications can submit batch requests
- * and monitor their status.
+ * QueueManager implementations allow a set of (possibly long-running) batch requests to be queued
+ * and executed in a managed sequence. Implementations may support distributed queues
+ * so that multiple instances of the QueueManager running on different hosts share the queue.
  */
-public interface RequestManager {
-
-    /**
-     * Return the queue manager which this processor uses to queue requests 
-     */
-    public QueueManager getQueueManager();
-
-    /**
-     * Return the cache manager which this processor uses to cache request results 
-     */
-    public CacheManager getCacheManager();
+public interface QueueManager {
     
     /**
      * Submit a request for processing. If the result of a matching request already
@@ -42,19 +33,36 @@ public interface RequestManager {
     public BatchStatus getStatus(String requestKey);
     
     /**
+     * Return information on all the requests in the queue
+     */
+    public List<BatchStatus> getQueue();
+    
+    /**
      * Retrieve a submitted request from its key, or return null if there is no such request.
      * Processed requests will remain available for a (configuarable) period after completion.
      */
     public BatchRequest findRequest(String key);
-    
-    /**
-     * Retrieve information on the status of a request, including whatever queue and ETA imformation is available.
-     */
-    public BatchStatus getFullStatus(String requestKey);
-    
-    /**
-     * Return information on all the requests in the queue
-     */
-    public List<BatchStatus> getQueue();
 
+    /**
+     * Locate the next request to be processed, mark as as InProgress and return it.
+     * Returns null if no request is waiting or arrived before the timeout
+     * @param timeout maximum time to wait in ms
+     */
+    public BatchRequest nextRequest(long timeout); 
+    
+    /**
+     * Mark the request as having been completed, removing it from the queue entirely
+     */
+    public void finishRequest(String key);
+    
+    /**
+     * Indicates that the calling process has failed to complete the request and returns the request
+     * back to the pending queue. 
+     */
+    public void abortRequest(String key);
+    
+    /**
+     * Indicates that the request cannot be completed and marks it as failed.
+     */
+    public void failRequest(String key);
 }

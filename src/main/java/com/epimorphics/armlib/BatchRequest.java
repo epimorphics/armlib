@@ -34,7 +34,7 @@ public class BatchRequest {
     protected String requestURI;
     protected MultivaluedMap<String, String> parameters;
     protected String key;
-    protected int estimatedTime = 60;
+    protected long estimatedTime = 60000;
     protected boolean sticky;
     
     public BatchRequest(String requestURI, MultivaluedMap<String, String> parameters) {
@@ -115,13 +115,13 @@ public class BatchRequest {
     }
     
     /**
-     * Get the estimated time to process this request (in seconds)
+     * Get the estimated time to process this request (in ms)
      */
-    public int getEstimatedTime() {
+    public long getEstimatedTime() {
         return estimatedTime;
     }
 
-    public void setEstimatedTime(int estimatedTime) {
+    public void setEstimatedTime(long estimatedTime) {
         this.estimatedTime = estimatedTime;
     }
 
