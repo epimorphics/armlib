@@ -50,8 +50,14 @@ public class StandardRequestManager extends ComponentBase implements RequestMana
         if (cacheManager.isReady(requestKey)) {
             return new BatchStatus(requestKey, cacheManager.getResultURL(requestKey), StatusFlag.Completed);
         } else {
-            // Race condition, might arrive in cache between above test and now, but that's fine 
-            return queueManager.submit(request);
+            BatchStatus status = queueManager.submit(request);
+            if (status.getStatus() == StatusFlag.Completed) {
+                if ( ! cacheManager.isReady(requestKey)) {
+                    // Queue thinks it's previously done this one but lost from the cache, start again
+                    status = queueManager.resubmit(request);
+                }
+            }
+            return status;
         }
     }
 
@@ -60,7 +66,13 @@ public class StandardRequestManager extends ComponentBase implements RequestMana
         if (cacheManager.isReady(requestKey)) {
             return new BatchStatus(requestKey, cacheManager.getResultURL(requestKey), StatusFlag.Completed);
         } else {
-            return queueManager.getStatus(requestKey);
+            BatchStatus status = queueManager.getStatus(requestKey);
+            if (status.getStatus() == StatusFlag.Completed) {
+                // Supposed to have been completed but not in cache, have to assume answer has been lost
+                return new BatchStatus(requestKey, StatusFlag.Unknown);
+            } else {
+                return status;
+            }
         }
     }
 
@@ -91,6 +103,9 @@ public class StandardRequestManager extends ComponentBase implements RequestMana
                         status.setEta( expected - sofar );
                     }
                 }
+            } else if (status.getStatus() == StatusFlag.Completed) {
+                // Supposed to have been completed but not in cache, have to assume answer has been lost
+                return new BatchStatus(requestKey, StatusFlag.Unknown);
             }
             return status;
         }

@@ -27,6 +27,9 @@ import com.epimorphics.util.NameUtils;
  * Non-distributed, file-based implementation primarily for test/dev use.
  */
 public class FileCacheManager extends ComponentBase implements CacheManager {
+    public static final String PERSISTENT_SEGMENT = "persistent/";
+    public static final String TEMPORARY_SEGMENT = "cache/";
+    
     protected String cacheDir;
     protected String defaultSuffix = "csv";
     
@@ -99,6 +102,18 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
         } catch (IOException e) {
             throw new EpiException(e);
         }
+    }
+
+    @Override
+    public void clear() {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void clearNonSticky() {
+        // TODO Auto-generated method stub
+        
     }
 
 }

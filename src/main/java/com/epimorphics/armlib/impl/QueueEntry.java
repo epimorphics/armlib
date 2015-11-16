@@ -55,4 +55,12 @@ public class QueueEntry {
         return s;
     }
     
+    public StatusFlag getStatusFlag() {
+        return status;
+    }
+    
+    public boolean isFinished() {
+        return status == StatusFlag.Completed || status == StatusFlag.Failed;
+    }
+    
 }

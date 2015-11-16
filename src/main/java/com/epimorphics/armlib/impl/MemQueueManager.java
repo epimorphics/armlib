@@ -38,15 +38,39 @@ public class MemQueueManager extends ComponentBase implements QueueManager {
     
     @Override
     public synchronized BatchStatus submit(BatchRequest request) {
-        QueueEntry entry = new QueueEntry(request);
+        QueueEntry entry = index.get(request.getKey());
+        if (entry == null) {
+            entry = new QueueEntry(request);
+            index.put(request.getKey(), entry);
+            queue.add(entry);
+        }
+        return entry.getStatus();
+    }
+
+    
+    @Override
+    public synchronized BatchStatus resubmit(BatchRequest request) {
+        QueueEntry entry = index.get(request.getKey());
+        if (entry != null) {
+            // Clear out any old copy
+            queue.remove(entry);
+            completed.remove(entry);
+            index.remove(request.getKey());
+        }
+        entry = new QueueEntry(request);
         index.put(request.getKey(), entry);
         queue.add(entry);
         return entry.getStatus();
     }
-
+    
     @Override
     public synchronized BatchStatus getStatus(String requestKey) {
-        return index.get(requestKey).getStatus();
+        QueueEntry entry = index.get(requestKey);
+        if (entry != null) {
+            return entry.getStatus();
+        } else {
+            return new BatchStatus(requestKey, StatusFlag.Unknown);
+        }
     }
 
     @Override
@@ -60,7 +84,12 @@ public class MemQueueManager extends ComponentBase implements QueueManager {
 
     @Override
     public synchronized BatchRequest findRequest(String key) {
-        return index.get(key).getRequest();
+        QueueEntry entry = index.get(key);
+        if (entry == null) {
+            return null;
+        } else {
+            return entry.getRequest();
+        }
     }
 
     @Override
@@ -99,6 +128,9 @@ public class MemQueueManager extends ComponentBase implements QueueManager {
     @Override
     public synchronized void finishRequest(String key) {
         QueueEntry entry = getEntry(key);
+        if (entry == null) {
+            throw new EpiException("Request has been lost, can mark as finished");
+        }
         entry.setStatus( StatusFlag.Completed );
         queue.remove(entry);
         completed.add(entry);

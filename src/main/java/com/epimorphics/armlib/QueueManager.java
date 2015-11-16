@@ -27,6 +27,11 @@ public interface QueueManager {
     public BatchStatus submit(BatchRequest request);
     
     /**
+     * Force a new request to be submitted, overiding any existing state for this request
+     */
+    public BatchStatus resubmit(BatchRequest request);
+    
+    /**
      * Retrieve information on the status of a request. This is intended to be a cheap call
      * to simply identify the processing status, it does not scan the queue to estimate ETA.
      */

@@ -66,4 +66,15 @@ public interface CacheManager {
      * Upload the result of a request to the persistent cache
      */
     public void upload(String requestKey, String suffix, InputStream result);
+    
+    /**
+     * Clear all cache entries - mostly useful for test harnesses
+     */
+    public void clear();
+    
+    /**
+     * Clear just the non-sticky cache entries
+     */
+    public void clearNonSticky();
+    
 }
