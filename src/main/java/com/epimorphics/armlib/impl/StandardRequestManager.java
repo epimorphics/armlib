@@ -84,15 +84,15 @@ public class StandardRequestManager extends ComponentBase implements RequestMana
             BatchStatus status = queueManager.getStatus(requestKey);
             if (status.getStatus() == StatusFlag.Pending) {
                 long eta = 0;
+                int position = 0;
                 for (BatchStatus s : queueManager.getQueue()) {
+                    position++;
                     if (s.getEstimatedTime().isPresent()) {
                         eta += s.getEstimatedTime().get();
-                        if (s.getKey().equals(requestKey)) {
-                            status.setEta(eta);
-                        }
-                    } else {
-                        // Can't estimate eta, missing information earlier in queue
-                        break;
+                    }
+                    if (s.getKey().equals(requestKey)) {
+                        status.setEta(eta);
+                        status.setPositionInQueue(position);
                     }
                 }
             } else if (status.getStatus() == StatusFlag.InProgress) {
@@ -102,6 +102,7 @@ public class StandardRequestManager extends ComponentBase implements RequestMana
                     if (sofar < expected) {
                         status.setEta( expected - sofar );
                     }
+                    status.setPositionInQueue(0);
                 }
             } else if (status.getStatus() == StatusFlag.Completed) {
                 // Supposed to have been completed but not in cache, have to assume answer has been lost

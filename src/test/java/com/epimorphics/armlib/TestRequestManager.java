@@ -84,6 +84,7 @@ public class TestRequestManager {
         BatchStatus s2 = rm.getFullStatus(req2.getKey());
         assertEquals(StatusFlag.Pending, s2.getStatus());
         assertEquals(150, (long)s2.getEta().get());
+        assertEquals(2, (int)s2.getPositionInQueue().get());
 
         // Queue summary looks right
         checkQueue(rm, req1.getKey(), StatusFlag.Pending, req2.getKey(), StatusFlag.Pending);
@@ -115,7 +116,9 @@ public class TestRequestManager {
         cm.upload(next, new ByteArrayInputStream( "Test1 result".getBytes() ));
         qm.finishRequest(next.getKey());
         checkQueue(rm, req2.getKey(), StatusFlag.Pending);
-        assertEquals(50, (long)rm.getFullStatus(req2.getKey()).getEta().get());
+        s2 = rm.getFullStatus(req2.getKey());
+        assertEquals(50, (long)s2.getEta().get());
+        assertEquals(1, (int)s2.getPositionInQueue().get());
         assertEquals(StatusFlag.Completed, rm.getStatus( req1.getKey() ).getStatus());
         
         // Cache sees it OK
@@ -125,10 +128,14 @@ public class TestRequestManager {
         
         // Get next request but fail it
         next = qm.nextRequest(12);
+        s2 = rm.getFullStatus(req2.getKey());
+        assertEquals(0, (int)s2.getPositionInQueue().get());
+        assertEquals(StatusFlag.InProgress, s2.getStatus());
         assertEquals(req2.getKey(), next.getKey());
         qm.failRequest( next.getKey() );
         assertTrue ( rm.getQueue().isEmpty() );
-        assertEquals(StatusFlag.Failed, rm.getStatus( req2.getKey() ).getStatus());
+        s2 = rm.getFullStatus(req2.getKey());
+        assertEquals(StatusFlag.Failed, s2.getStatus());
     }
     
     private static BatchRequest request(String url, boolean sticky, String...args) {
