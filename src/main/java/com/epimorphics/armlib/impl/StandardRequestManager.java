@@ -48,7 +48,7 @@ public class StandardRequestManager extends ComponentBase implements RequestMana
     public BatchStatus submit(BatchRequest request) {
         String requestKey = request.getKey();
         if (cacheManager.isReady(requestKey)) {
-            return new BatchStatus(requestKey, cacheManager.getResultURL(requestKey), StatusFlag.Completed);
+            return new BatchStatus(requestKey, cacheManager.getResultURL(request), StatusFlag.Completed);
         } else {
             BatchStatus status = queueManager.submit(request);
             if (status.getStatus() == StatusFlag.Completed) {

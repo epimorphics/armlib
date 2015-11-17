@@ -27,6 +27,13 @@ public interface CacheManager {
     /**
      * Return the URL from which the result of the request is/will be available
      */
+    public String getResultURL(BatchRequest request);
+    
+    /**
+     * Return the URL from which the result of the request is available
+     * (if the request is not complete then need the full request in order
+     * to check for stickiness).
+     */
     public String getResultURL(String requestKey);
     
     /**
@@ -50,22 +57,22 @@ public interface CacheManager {
     /**
      * Upload the result of a request to the persistent cache
      */
-    public void upload(String requestKey, File result);
+    public void upload(BatchRequest request, File result);
 
     /**
      * Upload the result of a request to the persistent cache
      */
-    public void upload(String requestKey, String suffix, File result);
+    public void upload(BatchRequest request, String suffix, File result);
 
     /**
      * Upload the result of a request to the persistent cache
      */
-    public void upload(String requestKey, InputStream result);
+    public void upload(BatchRequest request, InputStream result);
 
     /**
      * Upload the result of a request to the persistent cache
      */
-    public void upload(String requestKey, String suffix, InputStream result);
+    public void upload(BatchRequest request, String suffix, InputStream result);
     
     /**
      * Clear all cache entries - mostly useful for test harnesses

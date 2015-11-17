@@ -18,6 +18,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 
 import com.epimorphics.appbase.core.ComponentBase;
+import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.CacheManager;
 import com.epimorphics.util.EpiException;
 import com.epimorphics.util.FileUtil;
@@ -43,21 +44,38 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     }
 
     @Override
-    public String getResultURL(String requestKey) {
-        return "file:///" + getFileName(requestKey);
-    }
-    
-    private String getFileName(String requestKey) {
-        return getFileName(requestKey, defaultSuffix);
-    }
-    
-    private String getFileName(String requestKey, String suffix) {
-        return cacheDir + requestKey + "." + suffix;
+    public String getResultURL(BatchRequest request) {
+        return "file:///" + getFileName(request.getKey(), request.isSticky());
     }
 
     @Override
+    public String getResultURL(String requestKey) {
+        return "file:///" + findFileFor(requestKey, defaultSuffix).getPath();
+    }
+    
+    private String getFileName(String requestKey, boolean sticky) {
+        return getFileName(requestKey, defaultSuffix, sticky);
+    }
+    
+    private String getFileName(String requestKey, String suffix, boolean sticky) {
+        return cacheDir + (sticky? PERSISTENT_SEGMENT : TEMPORARY_SEGMENT)+ requestKey + "." + suffix;
+    }
+
+    private File findFileFor(String requestKey, String suffix) {
+        File file = new File( getFileName(requestKey, suffix, true) );
+        if (file.exists()) {
+            return file;
+        }
+        file = new File( getFileName(requestKey, suffix, false) );
+        if (file.exists()) {
+            return file;
+        }
+        return null;
+    }
+    
+    @Override
     public boolean isReady(String requestKey) {
-        return new File( getFileName(requestKey) ).exists();
+        return findFileFor(requestKey, defaultSuffix) != null;
     }
 
     @Override
@@ -68,35 +86,35 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     @Override
     public InputStream readResult(String requestKey, String suffix) {
         try {
-            return new FileInputStream( new File( getFileName(requestKey, suffix) ) );
+            return new FileInputStream( findFileFor(requestKey, suffix) );
         } catch (FileNotFoundException e) {
             return null;
         }
     }
 
     @Override
-    public void upload(String requestKey, File result) {
-        upload(requestKey, defaultSuffix, result);
+    public void upload(BatchRequest request, File result) {
+        upload(request, defaultSuffix, result);
     }
 
     @Override
-    public void upload(String requestKey, String suffix, File result) {
+    public void upload(BatchRequest request, String suffix, File result) {
         try {
-            FileUtil.copyResource(result.getPath(), getFileName(requestKey, suffix));
+            FileUtil.copyResource(result.getPath(), getFileName(request.getKey(), request.isSticky()));
         } catch (IOException e) {
             throw new EpiException(e);
         }
     }
 
     @Override
-    public void upload(String requestKey, InputStream result) {
-        upload(requestKey, defaultSuffix, result);
+    public void upload(BatchRequest request, InputStream result) {
+        upload(request, defaultSuffix, result);
     }
 
     @Override
-    public void upload(String requestKey, String suffix, InputStream result) {
+    public void upload(BatchRequest request, String suffix, InputStream result) {
         try {
-            OutputStream os = new FileOutputStream( getFileName(requestKey, suffix) );
+            OutputStream os = new FileOutputStream( getFileName(request.getKey(), request.isSticky()) );
             FileUtil.copyResource(result, os);
             os.close();
         } catch (IOException e) {
