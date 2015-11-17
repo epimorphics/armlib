@@ -52,6 +52,7 @@ public class QueueEntry {
         if (started.isPresent()) {
             s.setStarted( started.get() );
         }
+        s.setEstimatedTime( request.getEstimatedTime() );
         return s;
     }
     

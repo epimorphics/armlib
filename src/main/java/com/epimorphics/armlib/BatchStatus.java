@@ -24,10 +24,10 @@ public class BatchStatus {
     protected StatusFlag status;
     protected String     key;
     protected String            url;
-    protected Optional<Long>    started;
-    protected Optional<Integer> positionInQueue;
-    protected Optional<Long>    estimatedTime;
-    protected Optional<Long>    eta;
+    protected Optional<Long>    started = Optional.empty();
+    protected Optional<Integer> positionInQueue = Optional.empty();
+    protected Optional<Long>    estimatedTime = Optional.empty();
+    protected Optional<Long>    eta = Optional.empty();
     
     public BatchStatus(String key, String url, StatusFlag status) {
         this.key = key;

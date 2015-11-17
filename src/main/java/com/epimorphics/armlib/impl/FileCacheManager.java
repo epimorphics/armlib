@@ -36,7 +36,9 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     
     public void setCacheDir(String cacheDir) {
         this.cacheDir = NameUtils.ensureLastSlash( expandFileLocation(cacheDir) );
-        FileUtil.ensureDir(cacheDir);
+        FileUtil.ensureDir(cacheDir);        
+        FileUtil.ensureDir(this.cacheDir + PERSISTENT_SEGMENT);        
+        FileUtil.ensureDir(this.cacheDir + TEMPORARY_SEGMENT);        
     }
 
     public void setDefaultSuffix(String defaultSuffix) {
@@ -114,7 +116,8 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     @Override
     public void upload(BatchRequest request, String suffix, InputStream result) {
         try {
-            OutputStream os = new FileOutputStream( getFileName(request.getKey(), request.isSticky()) );
+            String fname = getFileName(request.getKey(), request.isSticky());
+            OutputStream os = new FileOutputStream( fname );
             FileUtil.copyResource(result, os);
             os.close();
         } catch (IOException e) {
@@ -124,14 +127,18 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
 
     @Override
     public void clear() {
-        // TODO Auto-generated method stub
-        
+        clear( cacheDir + PERSISTENT_SEGMENT );
+        clear( cacheDir + TEMPORARY_SEGMENT );
     }
 
     @Override
     public void clearNonSticky() {
-        // TODO Auto-generated method stub
-        
+        clear( cacheDir + TEMPORARY_SEGMENT );
+    }
+    
+    private void clear(String dir) {
+        FileUtil.deleteDirectory(dir);
+        FileUtil.ensureDir(dir);
     }
 
 }

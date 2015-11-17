@@ -12,7 +12,7 @@ package com.epimorphics.armlib;
 import java.util.List;
 
 /**
- * Provides and interface for how client applications can submit batch requests
+ * Provides an interface for how client applications can submit batch requests
  * and monitor their status.
  */
 public interface RequestManager {
