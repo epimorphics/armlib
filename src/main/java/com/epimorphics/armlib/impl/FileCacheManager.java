@@ -64,9 +64,9 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
         return urlPrefix + requestKey + "." + defaultSuffix;
     }
     
-    private String getFileName(String requestKey, boolean sticky) {
-        return getFileName(requestKey, defaultSuffix, sticky);
-    }
+//    private String getFileName(String requestKey, boolean sticky) {
+//        return getFileName(requestKey, defaultSuffix, sticky);
+//    }
     
     private String getFileName(String requestKey, String suffix, boolean sticky) {
         return cacheDir + (sticky? PERSISTENT_SEGMENT : TEMPORARY_SEGMENT)+ requestKey + "." + suffix;
@@ -111,7 +111,7 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     @Override
     public void upload(BatchRequest request, String suffix, File result) {
         try {
-            FileUtil.copyResource(result.getPath(), getFileName(request.getKey(), request.isSticky()));
+            FileUtil.copyResource(result.getPath(), getFileName(request.getKey(), suffix, request.isSticky()));
         } catch (IOException e) {
             throw new EpiException(e);
         }
@@ -125,7 +125,7 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     @Override
     public void upload(BatchRequest request, String suffix, InputStream result) {
         try {
-            String fname = getFileName(request.getKey(), request.isSticky());
+            String fname = getFileName(request.getKey(), suffix, request.isSticky());
             OutputStream os = new FileOutputStream( fname );
             FileUtil.copyResource(result, os);
             os.close();
