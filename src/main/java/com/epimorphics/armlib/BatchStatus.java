@@ -9,7 +9,13 @@
 
 package com.epimorphics.armlib;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Optional;
+
+import org.apache.jena.atlas.json.JsonObject;
+
+import com.epimorphics.json.JsonUtil;
 
 /**
  * Represents the status of a batch request. Some query operations 
@@ -128,6 +134,23 @@ public class BatchStatus {
 
     public void setEstimatedTime(long estimatedTime) {
         this.estimatedTime = Optional.of(estimatedTime);
+    }
+    
+    public JsonObject asJson() {
+        JsonObject o = JsonUtil.makeJson("key", key, "status", status.toString());
+        if (url != null) {
+            o.put("url", url);
+        }
+        if (positionInQueue.isPresent()) {
+            o.put("positionInQueue", positionInQueue.get());
+        }
+        if (eta.isPresent()) {
+            o.put("eta", eta.get());
+        }
+        if (started.isPresent()) {
+            o.put("started",  new SimpleDateFormat().format( new Date( started.get() ) ) );
+        }
+        return o;
     }
     
 }

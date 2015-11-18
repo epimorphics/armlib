@@ -56,12 +56,12 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
 
     @Override
     public String getResultURL(BatchRequest request) {
-        return urlPrefix + getFileName(request.getKey(), request.isSticky());
+        return getResultURL(request.getKey());
     }
 
     @Override
     public String getResultURL(String requestKey) {
-        return urlPrefix + findFileFor(requestKey, defaultSuffix).getPath();
+        return urlPrefix + requestKey + "." + defaultSuffix;
     }
     
     private String getFileName(String requestKey, boolean sticky) {
