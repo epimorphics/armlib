@@ -33,6 +33,7 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     
     protected String cacheDir;
     protected String defaultSuffix = "csv";
+    protected String urlPrefix = "http://localhost/service/report/";
     
     public void setCacheDir(String cacheDir) {
         this.cacheDir = NameUtils.ensureLastSlash( expandFileLocation(cacheDir) );
@@ -44,15 +45,19 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     public void setDefaultSuffix(String defaultSuffix) {
         this.defaultSuffix = defaultSuffix;
     }
+    
+    public void setUrlPrefix(String urlPrefix) {
+        this.urlPrefix = NameUtils.ensureLastSlash( urlPrefix );
+    }
 
     @Override
     public String getResultURL(BatchRequest request) {
-        return "file:///" + getFileName(request.getKey(), request.isSticky());
+        return urlPrefix + getFileName(request.getKey(), request.isSticky());
     }
 
     @Override
     public String getResultURL(String requestKey) {
-        return "file:///" + findFileFor(requestKey, defaultSuffix).getPath();
+        return urlPrefix + findFileFor(requestKey, defaultSuffix).getPath();
     }
     
     private String getFileName(String requestKey, boolean sticky) {
