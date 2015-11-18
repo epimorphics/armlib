@@ -42,6 +42,10 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
         FileUtil.ensureDir(this.cacheDir + TEMPORARY_SEGMENT);        
     }
 
+    public String getCacheDir() {
+        return cacheDir;
+    }
+
     public void setDefaultSuffix(String defaultSuffix) {
         this.defaultSuffix = defaultSuffix;
     }
