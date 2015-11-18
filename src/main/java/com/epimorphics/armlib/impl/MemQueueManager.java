@@ -98,32 +98,31 @@ public class MemQueueManager extends ComponentBase implements QueueManager {
 
     @Override
     public synchronized BatchRequest nextRequest(long timeout) {
-        QueueEntry entry = findNext();
-        if (entry == null) {
-            long count = 0;
-            while (entry == null && count < timeout) {
-                long sleep = Math.min(checkInterval, timeout - count);
-                try {
-                    Thread.sleep( sleep );
-                } catch (InterruptedException e) {
-                    return null;
-                }
-                count += sleep;
-                entry = findNext();
+        long count = 0;
+        BatchRequest next = nextRequest();
+        if (next != null) return next;
+        
+        while (count < timeout) {
+            long sleep = Math.min(checkInterval, timeout - count);
+            try {
+                Thread.sleep( sleep );
+            } catch (InterruptedException e) {
+                return null;
             }
+            count += sleep;
+            
+            next = nextRequest();
+            if (next != null) return next;
         }
-        if (entry == null) {
-            return null;
-        } else {
-            entry.setStarted();
-            return entry.getRequest();
-        }
+        return null;
     }
 
-    private QueueEntry findNext() {
+    @Override
+    public synchronized BatchRequest nextRequest() {
         for (QueueEntry entry : queue) {
             if (entry.status == StatusFlag.Pending) {
-                return entry;
+                entry.setStarted();
+                return entry.getRequest();
             }
         }
         return null;
