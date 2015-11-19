@@ -97,10 +97,14 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     @Override
     public InputStream readResult(String requestKey, String suffix) {
         try {
-            return new FileInputStream( findFileFor(requestKey, suffix) );
+            File file = findFileFor(requestKey, suffix);
+            if (file != null) {
+                return new FileInputStream( file );
+            }
         } catch (FileNotFoundException e) {
             return null;
         }
+        return null;
     }
 
     @Override
