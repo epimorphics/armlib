@@ -52,8 +52,9 @@ public interface QueueManager {
      * Locate the next request to be processed, mark as as InProgress and return it.
      * Returns null if no request is waiting or arrived before the timeout
      * @param timeout maximum time to wait in ms
+     * @throws InterruptedException 
      */
-    public BatchRequest nextRequest(long timeout); 
+    public BatchRequest nextRequest(long timeout) throws InterruptedException; 
 
     /**
      * Locate the next request to be processed, mark as as InProgress and return it.

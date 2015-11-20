@@ -37,7 +37,7 @@ import com.epimorphics.util.FileUtil;
 public class TestRequestManager {
 
     @Test
-    public void testGenericRequestManager() throws IOException {
+    public void testGenericRequestManager() throws IOException, InterruptedException {
         FileCacheManager cache = new FileCacheManager();
         String testDir = Files.createTempDirectory("testmonitor").toFile().getPath();
         cache.setCacheDir( testDir );
@@ -50,7 +50,7 @@ public class TestRequestManager {
         FileUtil.deleteDirectory(testDir);
     }
     
-    protected static void doTestStandardRequestManager(QueueManager qm, CacheManager cm) {
+    protected static void doTestStandardRequestManager(QueueManager qm, CacheManager cm)  throws InterruptedException {
         StandardRequestManager rm = new StandardRequestManager();
         rm.setCacheManager(cm);
         rm.setQueueManager(qm);
