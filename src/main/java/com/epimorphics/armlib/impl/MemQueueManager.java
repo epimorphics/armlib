@@ -43,7 +43,7 @@ public class MemQueueManager extends ComponentBase implements QueueManager {
     @Override
     public synchronized BatchStatus submit(BatchRequest request) {
         QueueEntry entry = index.get(request.getKey());
-        if (entry == null) {
+        if (entry == null || entry.getStatusFlag() == StatusFlag.Failed) {
             entry = new QueueEntry(request);
             index.put(request.getKey(), entry);
             queue.add(entry);
