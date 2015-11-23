@@ -72,6 +72,10 @@ public class BatchRequest {
         return sticky;
     }
     
+    public void setSticky(boolean sticky) {
+        this.sticky = sticky;
+    }
+    
     /**
      * Assign a key which identifies the request, useful if the key name should
      * be readable.
