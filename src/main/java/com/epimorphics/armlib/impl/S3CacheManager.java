@@ -1,0 +1,176 @@
+/******************************************************************
+ * File:        S3CacheManager.java
+ * Created by:  Dave Reynolds
+ * Created on:  26 Nov 2015
+ * 
+ * (c) Copyright 2015, Epimorphics Limited
+ *
+ *****************************************************************/
+
+package com.epimorphics.armlib.impl;
+
+import java.io.File;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.amazonaws.regions.Region;
+import com.amazonaws.regions.Regions;
+import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.epimorphics.armlib.BatchRequest;
+import com.epimorphics.armlib.CacheManager;
+import com.epimorphics.util.EpiException;
+import com.epimorphics.util.NameUtils;
+
+public class S3CacheManager implements CacheManager {
+    public static final String PERSISTENT_SEGMENT = "persistent/";
+    public static final String TEMPORARY_SEGMENT = "cache/";
+
+    protected String S3BaseURL = "https://s3-eu-west-1.amazonaws.com/";
+    protected String bucket;
+    protected String baseKey;
+    protected String defaultSuffix = "csv";
+    protected Region region = Region.getRegion(Regions.EU_WEST_1);
+    protected AmazonS3Client s3client;
+    
+    public S3CacheManager() {
+        s3client = new AmazonS3Client();
+        s3client.setRegion( region );
+    }
+    
+    public void setDefaultSuffix(String defaultSuffix) {
+        this.defaultSuffix = defaultSuffix;
+    }
+    
+    public void setS3BaseURL(String s3BaseURL) {
+        S3BaseURL = NameUtils.ensureLastSlash(s3BaseURL);
+    }
+
+    public void setBucket(String bucket) {
+        this.bucket = bucket;
+    }
+
+    public void setBaseKey(String baseKey) {
+        this.baseKey = NameUtils.ensureLastSlash(baseKey);
+    }
+
+    @Override
+    public String getResultURL(BatchRequest request) {
+        return S3BaseURL + bucket + "/" + getS3Key(request.getKey(), defaultSuffix, request.isSticky());
+    }
+
+    @Override
+    public String getResultURL(String requestKey) {
+        return S3BaseURL + bucket + "/" + getS3Key(requestKey, defaultSuffix, true);
+    }
+    
+    private String getS3Key(String requestKey, String suffix, boolean sticky) {
+        return baseKey + (sticky? PERSISTENT_SEGMENT : TEMPORARY_SEGMENT)+ requestKey + "." + suffix;
+    }
+
+    private String getS3Key(String requestKey, String suffix) {
+        String obj = getS3Key(requestKey, suffix, true);
+        if ( exists(obj) ) {
+            return obj;
+        }
+        obj = getS3Key(requestKey, suffix, false);
+        if (exists(obj)) {
+            return obj;
+        }
+        return null;
+    }
+    
+    @Override
+    public boolean isReady(String requestKey) {
+        return getS3Key(requestKey, defaultSuffix) != null;
+    }
+
+    private boolean exists(String key) {
+        try {
+            s3client.getObjectMetadata(bucket, key);
+            return true;
+        } catch (AmazonS3Exception e) {
+            if (e.getStatusCode() == 404) {
+                return false;
+            } else {
+                throw new EpiException("Problem access S3 bucket", e);
+            }
+        }
+    }
+    
+    @Override
+    public InputStream readResult(String requestKey) {
+        return readResult(requestKey, defaultSuffix);
+    }
+
+    @Override
+    public InputStream readResult(String requestKey, String suffix) {
+        // Brute force since it makes three s3 calls but this is not the main interface
+        String objkey = getS3Key(requestKey, suffix);
+        if (objkey != null) {
+            S3Object object = s3client.getObject(bucket, objkey);
+            return object.getObjectContent();
+        } else {
+            return null;
+        }
+    }
+
+    @Override
+    public void upload(BatchRequest request, File result) {
+        upload(request, defaultSuffix, result);
+    }
+
+    @Override
+    public void upload(BatchRequest request, String suffix, File result) {
+        String objkey = getS3Key(request.getKey(), suffix, request.isSticky());
+        s3client.putObject(bucket, objkey, result);
+    }
+
+    @Override
+    public void upload(BatchRequest request, InputStream result) {
+        upload(request, defaultSuffix, result);
+    }
+
+    @Override
+    public void upload(BatchRequest request, String suffix, InputStream result) {
+        String objkey = getS3Key(request.getKey(), suffix, request.isSticky());
+        ObjectMetadata meta = new ObjectMetadata();
+        s3client.putObject(bucket, objkey, result, meta);
+    }
+
+    @Override
+    public void clear() {
+        clearFolder( baseKey + TEMPORARY_SEGMENT );
+        clearFolder( baseKey + PERSISTENT_SEGMENT );
+    }
+
+    @Override
+    public void clearNonSticky() {
+        clearFolder( baseKey + TEMPORARY_SEGMENT );
+    }
+    
+    private void clearFolder(String folder) {
+        List<String> toDelete = new ArrayList<>();
+        do {
+            toDelete.clear();
+            ObjectListing list = s3client.listObjects(bucket, folder);
+            for (S3ObjectSummary summary: list.getObjectSummaries()) {
+                toDelete.add( summary.getKey() );
+            }
+            if ( ! toDelete.isEmpty() ) {
+                String[] keys = new String[ toDelete.size() ];
+                keys = toDelete.toArray(keys);
+                DeleteObjectsRequest request = new DeleteObjectsRequest(bucket);
+                request.withKeys(keys);
+                s3client.deleteObjects( request );
+            }
+        } while ( ! toDelete.isEmpty() );
+    }
+    
+}

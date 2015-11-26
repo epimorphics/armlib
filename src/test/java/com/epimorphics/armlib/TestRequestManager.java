@@ -18,12 +18,14 @@ import javax.ws.rs.core.MultivaluedMap;
 
 import org.apache.jena.util.FileManager;
 import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
+import org.junit.Ignore;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
 import com.epimorphics.armlib.impl.FileCacheManager;
 import com.epimorphics.armlib.impl.MemQueueManager;
+import com.epimorphics.armlib.impl.S3CacheManager;
 import com.epimorphics.armlib.impl.StandardRequestManager;
 import com.epimorphics.util.FileUtil;
 
@@ -48,6 +50,21 @@ public class TestRequestManager {
         doTestStandardRequestManager(queue, cache);
         
         FileUtil.deleteDirectory(testDir);
+    }
+    
+    // Test requires credentials and default profile for access to aws-expt
+    @Ignore
+    @Test
+    public void testWithS3() throws IOException, InterruptedException {
+        S3CacheManager cm = new S3CacheManager();
+        cm.setBucket("epi-repository");
+        cm.setBaseKey("test");
+
+        MemQueueManager queue = new MemQueueManager();
+        queue.setCheckInterval(5);
+        
+        doTestStandardRequestManager(queue, cm);
+        cm.clear();
     }
     
     protected static void doTestStandardRequestManager(QueueManager qm, CacheManager cm)  throws InterruptedException {
