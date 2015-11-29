@@ -23,6 +23,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
+import com.epimorphics.armlib.impl.DynQueueManager;
 import com.epimorphics.armlib.impl.FileCacheManager;
 import com.epimorphics.armlib.impl.MemQueueManager;
 import com.epimorphics.armlib.impl.S3CacheManager;
@@ -50,6 +51,22 @@ public class TestRequestManager {
         doTestStandardRequestManager(queue, cache);
         
         FileUtil.deleteDirectory(testDir);
+    }
+    
+    // Test requires local instance of DynamoDB running on port 8000
+    @Ignore
+    @Test
+    public void testWithDyn() throws IOException, InterruptedException {
+        FileCacheManager cache = new FileCacheManager();
+        String testDir = Files.createTempDirectory("testmonitor").toFile().getPath();
+        cache.setCacheDir( testDir );
+
+        DynQueueManager queue = new DynQueueManager();
+        queue.setCheckInterval(100);
+        queue.setLocalTestEndpoint("http://localhost:8000");
+        queue.startup(null);
+        
+        doTestStandardRequestManager(queue, cache);
     }
     
     // Test requires credentials and default profile for access to aws-expt

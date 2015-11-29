@@ -17,6 +17,8 @@ import java.util.List;
 
 import javax.ws.rs.core.MultivaluedMap;
 
+import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
+
 import com.epimorphics.util.EpiException;
 
 /**
@@ -46,6 +48,16 @@ public class BatchRequest {
         this.parameters = parameters;
         this.sticky = sticky;
     }
+    
+    public BatchRequest(String requestURI, String parameterString) {
+        this(requestURI, parameterString, false);
+    }
+    
+    public BatchRequest(String requestURI, String parameterString, boolean sticky) {
+        this.requestURI = requestURI;
+        this.parameters = decodeParameterString(parameterString);
+        this.sticky = sticky;
+    }
 
     /**
      * The original URI being requested
@@ -63,6 +75,35 @@ public class BatchRequest {
         return parameters;
     }
 
+    /**
+     * Return the parameters for the request as a single query string
+     */
+    public String getParameterString() {
+        StringBuffer buff = new StringBuffer();
+        boolean started = false;
+        for (String param : parameters.keySet()) {
+            for (String value : parameters.get(param)) {
+                if (started) buff.append("&");
+                buff.append(param);
+                buff.append("=");
+                buff.append(value);
+                started = true;
+            }
+        }
+        return buff.toString();
+    }
+    
+    public static MultivaluedMap<String, String> decodeParameterString(String paramString) {
+        MultivaluedMap<String, String> parameters = new MultivaluedStringMap();
+        for (String binding : paramString.split("&")) {
+            String[] pair = binding.split("=");
+            String param = pair[0];
+            String value = pair[1];
+            parameters.add(param, value);
+        }
+        return parameters;
+    }
+    
     /**
      * If true this indicates the result should be cached in a separate persistent cache
      * which is not subject to whatever timeout/garbage collection policy applies to

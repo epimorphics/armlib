@@ -25,6 +25,11 @@ public class TestBatchRequest {
         parameters.add("key2", "value3");
         BatchRequest request = new BatchRequest("http://localhost/service", parameters);
         
+        String paramString = request.getParameterString();
+        assertTrue( paramString.contains("key1=value1") );
+        assertTrue( paramString.contains("key1=value2") );
+        assertTrue( paramString.contains("key2=value3") );
+        
         assertEquals("http://localhost/service", request.getRequestURI());
         assertEquals("value3", request.getParameters().getFirst("key2"));
         String key = request.getKey();
