@@ -9,7 +9,10 @@
 
 package com.epimorphics.armlib.impl;
 
+import java.io.BufferedInputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +28,7 @@ import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.CacheManager;
+import com.epimorphics.armlib.MediaTypes;
 import com.epimorphics.util.EpiException;
 import com.epimorphics.util.NameUtils;
 
@@ -128,8 +132,12 @@ public class S3CacheManager implements CacheManager {
 
     @Override
     public void upload(BatchRequest request, String suffix, File result) {
-        String objkey = getS3Key(request.getKey(), suffix, request.isSticky());
-        s3client.putObject(bucket, objkey, result);
+        try {
+            InputStream stream = new BufferedInputStream( new FileInputStream(result) );
+            upload(request, suffix, stream);
+        } catch (IOException e) {
+            throw new EpiException("Failed to access upload file", e);
+        }
     }
 
     @Override
@@ -141,6 +149,10 @@ public class S3CacheManager implements CacheManager {
     public void upload(BatchRequest request, String suffix, InputStream result) {
         String objkey = getS3Key(request.getKey(), suffix, request.isSticky());
         ObjectMetadata meta = new ObjectMetadata();
+        String contentType = MediaTypes.getMediaTypeForExtension(suffix);
+        if (contentType != null){
+            meta.setContentType( contentType );
+        }
         s3client.putObject(bucket, objkey, result, meta);
     }
 
