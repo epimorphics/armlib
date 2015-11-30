@@ -127,7 +127,7 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
             GlobalSecondaryIndex index = new GlobalSecondaryIndex()
                     .withIndexName(COMPLETED_TIME_INDEX)
                     .withProvisionedThroughput(new ProvisionedThroughput()
-                            .withReadCapacityUnits(5L)
+                            .withReadCapacityUnits(3L)
                             .withWriteCapacityUnits(1L))
                     .withKeySchema(Arrays.asList( 
                                     new KeySchemaElement(STATUS_ATTRIBUTE, KeyType.HASH),
@@ -141,7 +141,7 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
                             new AttributeDefinition(KEY_ATTRIBUTE, ScalarAttributeType.S)
                             ))
                     .withGlobalSecondaryIndexes(index)
-                    .withProvisionedThroughput(new ProvisionedThroughput(5L, 5L));
+                    .withProvisionedThroughput(new ProvisionedThroughput(1L, 1L));
             newTables.add( dynamoDB.createTable(req) );
         }
         for (Table table : newTables) {
