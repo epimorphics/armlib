@@ -157,7 +157,12 @@ public class MemQueueManager extends ComponentBase implements QueueManager {
             completed.add(entry);
         }
     }
-    
+
+    @Override
+    public void removeOldCompletedRequests(long age) {
+        // Ignore, this implementation is only relevant in tests setups
+    }
+
     private QueueEntry getEntry(String key) {
         return index.get(key);
     }

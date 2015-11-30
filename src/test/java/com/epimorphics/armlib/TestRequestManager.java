@@ -13,6 +13,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
+import java.util.Map;
 
 import javax.ws.rs.core.MultivaluedMap;
 
@@ -20,8 +21,14 @@ import org.apache.jena.util.FileManager;
 import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
 import org.junit.Ignore;
 import org.junit.Test;
+
+import static com.epimorphics.armlib.impl.DynQueueManager.COMPLETED_TABLE;
+import static com.epimorphics.armlib.impl.DynQueueManager.COMPLETED_TIME_INDEX;
 import static org.junit.Assert.*;
 
+import com.amazonaws.services.dynamodbv2.model.AttributeValue;
+import com.amazonaws.services.dynamodbv2.model.ScanRequest;
+import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
 import com.epimorphics.armlib.impl.DynQueueManager;
 import com.epimorphics.armlib.impl.FileCacheManager;
@@ -67,6 +74,34 @@ public class TestRequestManager {
         queue.startup(null);
         
         doTestStandardRequestManager(queue, cache);
+        addCompletedRequest(queue, 1);
+        assertEquals(2, countCompleted(queue));
+        long cutoff = System.currentTimeMillis();
+    
+        addCompletedRequest(queue, 3);
+        assertEquals(3, countCompleted(queue));
+        
+        queue.removeOldCompletedRequests(cutoff);
+        assertEquals(1, countCompleted(queue));
+    }
+
+    private void addCompletedRequest(DynQueueManager queue, int i) {
+        BatchRequest request = new BatchRequest("http://localhost", "p=foo&q=bar" + i);
+        queue.submit(request);
+        queue.finishRequest(request.getKey());
+    }
+    
+    private int countCompleted(DynQueueManager queue) {
+        ScanResult result = queue.getDynamoClient().scan(new ScanRequest()
+                .withTableName(COMPLETED_TABLE)
+                .withIndexName(COMPLETED_TIME_INDEX));
+        int count = 0;
+        for (Map<String,AttributeValue> item : result.getItems()) {
+            if (item.get("Status").getS().equals(StatusFlag.Completed.name())) {
+                count++;
+            }
+        }
+        return count;
     }
     
     // Test requires credentials and default profile for access to aws-expt

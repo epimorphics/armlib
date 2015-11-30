@@ -77,4 +77,10 @@ public interface QueueManager {
      * Indicates that the request cannot be completed and marks it as failed.
      */
     public void failRequest(String key);
+    
+    /**
+     * Remove old completed request records (may not be implemented in all cases)
+     * @param cutoff timestamp before which records should be discarded
+     */
+    public void removeOldCompletedRequests(long cutoff);
 }
