@@ -65,14 +65,24 @@ public interface CacheManager {
     public void upload(BatchRequest request, String suffix, File result);
 
     /**
-     * Upload the result of a request to the persistent cache
+     * Start an upload of the result of a request to the persistent cache.
+     * The caller should write the data to the output stream and then close it.
+     * The cache manager will fork a thread to transfer the stream to cache.
+     * If the caller does not close the outputstream a serious Thread leak will result. 
+     * Uses default suffix (.csv) and no compression
      */
-    public void upload(BatchRequest request, InputStream result);
+    public Pipe upload(BatchRequest request);
 
     /**
-     * Upload the result of a request to the persistent cache
+     * Start an upload of the result of a request to the persistent cache.
+     * The caller should write the data to the output stream and then close it.
+     * The cache manager will fork a thread to transfer the stream to cache.
+     * If the caller does not close the outputstream a serious Thread leak will result.
+     * @param request the request whose result is to be uploaded 
+     * @param suffix optional suffix to attach 
+     * @param compress if set to true then the upload will be gziped and .gz will added to the suffix
      */
-    public void upload(BatchRequest request, String suffix, InputStream result);
+    public Pipe upload(BatchRequest request, String suffix, boolean compress);
     
     /**
      * Clear all cache entries - mostly useful for test harnesses

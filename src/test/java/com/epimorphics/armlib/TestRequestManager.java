@@ -9,8 +9,16 @@
 
 package com.epimorphics.armlib;
 
-import java.io.ByteArrayInputStream;
+import static com.epimorphics.armlib.impl.DynQueueManager.COMPLETED_TABLE;
+import static com.epimorphics.armlib.impl.DynQueueManager.COMPLETED_TIME_INDEX;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
@@ -21,10 +29,6 @@ import org.apache.jena.util.FileManager;
 import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
 import org.junit.Ignore;
 import org.junit.Test;
-
-import static com.epimorphics.armlib.impl.DynQueueManager.COMPLETED_TABLE;
-import static com.epimorphics.armlib.impl.DynQueueManager.COMPLETED_TIME_INDEX;
-import static org.junit.Assert.*;
 
 import com.amazonaws.services.dynamodbv2.model.AttributeValue;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
@@ -119,7 +123,7 @@ public class TestRequestManager {
         cm.clear();
     }
     
-    protected static void doTestStandardRequestManager(QueueManager qm, CacheManager cm)  throws InterruptedException {
+    protected static void doTestStandardRequestManager(QueueManager qm, CacheManager cm)  throws InterruptedException, IOException {
         StandardRequestManager rm = new StandardRequestManager();
         rm.setCacheManager(cm);
         rm.setQueueManager(qm);
@@ -182,7 +186,11 @@ public class TestRequestManager {
         checkQueue(rm, req1.getKey(), StatusFlag.InProgress, req2.getKey(), StatusFlag.Pending);
         
         // Generate a dummy result for the request and finish it
-        cm.upload(next, new ByteArrayInputStream( "Test1 result".getBytes() ));
+        Pipe pipe = cm.upload(next);
+        OutputStream out = pipe.getSource();
+        out.write( "Test1 result".getBytes() );
+        out.close();
+        pipe.waitForCompletion();
         qm.finishRequest(next.getKey());
         checkQueue(rm, req2.getKey(), StatusFlag.Pending);
         s2 = rm.getFullStatus(req2.getKey());

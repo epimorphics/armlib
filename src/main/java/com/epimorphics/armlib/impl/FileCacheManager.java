@@ -17,7 +17,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-import com.epimorphics.appbase.core.ComponentBase;
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.CacheManager;
 import com.epimorphics.util.EpiException;
@@ -27,12 +26,11 @@ import com.epimorphics.util.NameUtils;
 /**
  * Non-distributed, file-based implementation primarily for test/dev use.
  */
-public class FileCacheManager extends ComponentBase implements CacheManager {
+public class FileCacheManager extends BaseCacheManager implements CacheManager {
     public static final String PERSISTENT_SEGMENT = "persistent/";
     public static final String TEMPORARY_SEGMENT = "cache/";
     
     protected String cacheDir;
-    protected String defaultSuffix = "csv";
     protected String urlPrefix = "http://localhost/service/report/";
     
     public void setCacheDir(String cacheDir) {
@@ -44,10 +42,6 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
 
     public String getCacheDir() {
         return cacheDir;
-    }
-
-    public void setDefaultSuffix(String defaultSuffix) {
-        this.defaultSuffix = defaultSuffix;
     }
     
     public void setUrlPrefix(String urlPrefix) {
@@ -108,11 +102,6 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     }
 
     @Override
-    public void upload(BatchRequest request, File result) {
-        upload(request, defaultSuffix, result);
-    }
-
-    @Override
     public void upload(BatchRequest request, String suffix, File result) {
         try {
             FileUtil.copyResource(result.getPath(), getFileName(request.getKey(), suffix, request.isSticky()));
@@ -122,12 +111,7 @@ public class FileCacheManager extends ComponentBase implements CacheManager {
     }
 
     @Override
-    public void upload(BatchRequest request, InputStream result) {
-        upload(request, defaultSuffix, result);
-    }
-
-    @Override
-    public void upload(BatchRequest request, String suffix, InputStream result) {
+    protected void upload(BatchRequest request, String suffix, InputStream result) {
         try {
             String fname = getFileName(request.getKey(), suffix, request.isSticky());
             OutputStream os = new FileOutputStream( fname );

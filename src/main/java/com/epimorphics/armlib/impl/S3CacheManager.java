@@ -32,24 +32,19 @@ import com.epimorphics.armlib.MediaTypes;
 import com.epimorphics.util.EpiException;
 import com.epimorphics.util.NameUtils;
 
-public class S3CacheManager implements CacheManager {
+public class S3CacheManager extends BaseCacheManager implements CacheManager {
     public static final String PERSISTENT_SEGMENT = "persistent/";
     public static final String TEMPORARY_SEGMENT = "cache/";
 
     protected String S3BaseURL = "https://s3-eu-west-1.amazonaws.com/";
     protected String bucket;
     protected String baseKey;
-    protected String defaultSuffix = "csv";
     protected Region region = Region.getRegion(Regions.EU_WEST_1);
     protected AmazonS3Client s3client;
     
     public S3CacheManager() {
         s3client = new AmazonS3Client();
         s3client.setRegion( region );
-    }
-    
-    public void setDefaultSuffix(String defaultSuffix) {
-        this.defaultSuffix = defaultSuffix;
     }
     
     public void setS3BaseURL(String s3BaseURL) {
@@ -126,11 +121,6 @@ public class S3CacheManager implements CacheManager {
     }
 
     @Override
-    public void upload(BatchRequest request, File result) {
-        upload(request, defaultSuffix, result);
-    }
-
-    @Override
     public void upload(BatchRequest request, String suffix, File result) {
         try {
             InputStream stream = new BufferedInputStream( new FileInputStream(result) );
@@ -141,12 +131,7 @@ public class S3CacheManager implements CacheManager {
     }
 
     @Override
-    public void upload(BatchRequest request, InputStream result) {
-        upload(request, defaultSuffix, result);
-    }
-
-    @Override
-    public void upload(BatchRequest request, String suffix, InputStream result) {
+    protected void upload(BatchRequest request, String suffix, InputStream result) {
         String objkey = getS3Key(request.getKey(), suffix, request.isSticky());
         ObjectMetadata meta = new ObjectMetadata();
         String contentType = MediaTypes.getMediaTypeForExtension(suffix);
