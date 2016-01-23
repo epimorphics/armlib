@@ -137,23 +137,40 @@ public class BatchRequest {
      */
     public String getKey() {
         if (key == null) {
-            try {
-                MessageDigest md = MessageDigest.getInstance("MD5");
-                md.update( requestURI.getBytes("UTF-8") );
-                for (String p : sorted(parameters.keySet())) {
-                    for (String value : sorted(parameters.get(p))) {
-                        String k = p + "=" + value;
-                        md.update( k.getBytes("UTF-8") );
+            StringBuffer kb = new StringBuffer();
+            kb.append(requestURI);
+            kb.append("_");
+            for (String p : sorted(parameters.keySet())) {
+                kb.append(p);
+                kb.append("_");
+                for (String value : sorted(parameters.get(p))) {
+                    kb.append(value);   kb.append("_");
+                }
+            }
+                
+            key = kb.toString();
+            key = key.replace("/", "%2F");
+            key = key.substring(0, key.length()-1); // Strip last "_"
+            if (key.length() > MAX_KEY_LENGTH) {
+                // Explicit coding too big, so use digest
+                try {
+                    MessageDigest md = MessageDigest.getInstance("MD5");
+                    md.update( requestURI.getBytes("UTF-8") );
+                    for (String p : sorted(parameters.keySet())) {
+                        for (String value : sorted(parameters.get(p))) {
+                            String k = p + "=" + value;
+                            md.update( k.getBytes("UTF-8") );
+                        }
                     }
+                    byte[] array = md.digest();
+                    StringBuffer sb = new StringBuffer();
+                    for (int i = 0; i < array.length; ++i) {
+                        sb.append(Integer.toHexString((array[i] & 0xFF) | 0x100).substring(1,3));
+                    }
+                    key = sb.toString();
+                } catch (Exception e) {
+                    throw new EpiException("'Impossible' internal error generating digest", e);
                 }
-                byte[] array = md.digest();
-                StringBuffer sb = new StringBuffer();
-                for (int i = 0; i < array.length; ++i) {
-                    sb.append(Integer.toHexString((array[i] & 0xFF) | 0x100).substring(1,3));
-                }
-                key = sb.toString();
-            } catch (Exception e) {
-                throw new EpiException("'Impossible' internal error generating digest", e);
             }
         }
         return key;
