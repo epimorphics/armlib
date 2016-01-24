@@ -9,6 +9,7 @@
 
 package com.epimorphics.armlib.impl;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -104,7 +105,7 @@ public class FileCacheManager extends BaseCacheManager implements CacheManager {
     @Override
     public void upload(BatchRequest request, String suffix, File result) {
         try {
-            FileUtil.copyResource(result.getPath(), getFileName(request.getKey(), suffix, request.isSticky()));
+            upload(request, suffix, new BufferedInputStream( new FileInputStream(result) ) );
         } catch (IOException e) {
             throw new EpiException(e);
         }
@@ -114,9 +115,12 @@ public class FileCacheManager extends BaseCacheManager implements CacheManager {
     protected void upload(BatchRequest request, String suffix, InputStream result) {
         try {
             String fname = getFileName(request.getKey(), suffix, request.isSticky());
-            OutputStream os = new FileOutputStream( fname );
+            String tempfname = fname + ".hide";
+            OutputStream os = new FileOutputStream( tempfname );
             FileUtil.copyResource(result, os);
             os.close();
+            // Now move the result into position so it appears atomically (well depending on file system)
+            new File(tempfname).renameTo( new File(fname) );
         } catch (IOException e) {
             throw new EpiException(e);
         }
