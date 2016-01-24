@@ -84,9 +84,9 @@ public class BatchRequest {
         for (String param : parameters.keySet()) {
             for (String value : parameters.get(param)) {
                 if (started) buff.append("&");
-                buff.append(param);
+                buff.append( param ) ;
                 buff.append("=");
-                buff.append(value);
+                buff.append( value );
                 started = true;
             }
         }
@@ -98,8 +98,11 @@ public class BatchRequest {
         for (String binding : paramString.split("&")) {
             String[] pair = binding.split("=");
             String param = pair[0];
-            String value = pair[1];
-            parameters.add(param, value);
+            if (pair.length == 2) {
+                parameters.add(param, pair[1]);
+            } else {
+                parameters.addAll(param);
+            }
         }
         return parameters;
     }

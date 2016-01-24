@@ -42,5 +42,14 @@ public class TestBatchRequest {
         parameters.add("key2", "value4");
         String keyOther = new BatchRequest("http://localhost/service", parameters).getKey();
         assertNotSame(key, keyOther);
+        
+        parameters.addAll("key3");    // Just parameter no value
+        
+        request = new BatchRequest("http://localhost/service", parameters);
+        String enc = request.getParameterString();
+        MultivaluedMap<String, String> recovered = BatchRequest.decodeParameterString( enc );
+        
+        assertEquals(parameters, recovered);
+        
     }
 }
