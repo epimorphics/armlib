@@ -18,10 +18,12 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.GZIPInputStream;
 
 import javax.ws.rs.core.MultivaluedMap;
 
@@ -52,15 +54,20 @@ public class TestRequestManager {
 
     @Test
     public void testGenericRequestManager() throws IOException, InterruptedException {
+        doLocalTest(false);
+        doLocalTest(true);
+    }
+    
+    protected void doLocalTest(boolean compress) throws IOException, InterruptedException {
         FileCacheManager cache = new FileCacheManager();
         String testDir = Files.createTempDirectory("testmonitor").toFile().getPath();
         cache.setCacheDir( testDir );
+        cache.setCompressed(compress);
 
         MemQueueManager queue = new MemQueueManager();
         queue.setCheckInterval(5);
         
         doTestStandardRequestManager(queue, cache);
-        
         FileUtil.deleteDirectory(testDir);
     }
     
@@ -200,7 +207,11 @@ public class TestRequestManager {
         
         // Cache sees it OK
         assertTrue( cm.isReady( req1.getKey() ) );
-        String value = FileManager.get().readWholeFileAsUTF8( cm.readResult( req1.getKey() ) );
+        InputStream in = cm.readResult( req1.getKey() );
+        if (cm.isCompressed()) {
+            in = new GZIPInputStream(in);
+        }
+        String value = FileManager.get().readWholeFileAsUTF8( in );
         assertEquals( "Test1 result", value);
         
         // Get next request but fail it

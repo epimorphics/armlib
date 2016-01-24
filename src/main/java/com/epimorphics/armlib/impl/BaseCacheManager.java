@@ -25,11 +25,22 @@ import com.epimorphics.util.EpiException;
 
 public abstract class BaseCacheManager extends ComponentBase implements CacheManager {
     protected String defaultSuffix = "csv";
-
+    protected boolean compress = false;
+    
     public void setDefaultSuffix(String defaultSuffix) {
         this.defaultSuffix = defaultSuffix;
     }
 
+    @Override
+    public void setCompressed(boolean compress) {
+        this.compress = compress;
+    }
+    
+    @Override
+    public boolean isCompressed() {
+        return compress;
+    }
+    
     @Override
     public void upload(BatchRequest request, File result) {
         upload(request, defaultSuffix, result);
@@ -39,12 +50,12 @@ public abstract class BaseCacheManager extends ComponentBase implements CacheMan
 
     @Override
     public Pipe upload(BatchRequest request) {
-        return upload(request, defaultSuffix, false);
+        return upload(request, defaultSuffix);
     }
     
     @Override
-    public Pipe upload(BatchRequest request, String suffix, boolean compress) {
-        PipeImpl pipe = new PipeImpl(request, suffix, compress);
+    public Pipe upload(BatchRequest request, String suffix) {
+        PipeImpl pipe = new PipeImpl(request, suffix);
         pipe.start();
         return pipe;
     }
@@ -58,9 +69,9 @@ public abstract class BaseCacheManager extends ComponentBase implements CacheMan
         protected OutputStream source;
         protected PipedInputStream  sink;
         
-        public PipeImpl(BatchRequest request, String suffix, boolean compress) {
+        public PipeImpl(BatchRequest request, String suffix) {
             this.request = request;
-            this.suffix = compress ? suffix + ".gz" : suffix;
+            this.suffix = suffix;
             PipedOutputStream out = new PipedOutputStream();
             try {
                 sink = new PipedInputStream(out);

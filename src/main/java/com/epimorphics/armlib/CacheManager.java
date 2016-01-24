@@ -23,6 +23,24 @@ import java.io.InputStream;
  * </p>
  */
 public interface CacheManager {
+
+    /**
+     * Set the default suffix to use for files unless explicitly overriden when uploaded
+     */
+    public void setDefaultSuffix(String defaultSuffix);
+
+    /**
+     * Set to true to indicate that data should be compressed in the cache.
+     * When uploading an InputStream the cache manager with perform compression.
+     * When uploading a file then assumes the file has already been compressed.
+     */
+    public void setCompressed(boolean compress);
+
+    /**
+     * Returns true if compression is enabled so that both file contents and read streams
+     * will be compressed.
+     */
+    public boolean isCompressed();
     
     /**
      * Return the URL from which the result of the request is/will be available
@@ -44,12 +62,14 @@ public interface CacheManager {
     
     /**
      * Return the result of the request as an InputStream.
+     * If the cache is set to be compressed, the result will be gzip encoded.
      * Returns null if the result is not available.
      */
     public InputStream readResult(String requestKey);
     
     /**
      * Return the result of the request as an InputStream.
+     * If the cache is set to be compressed, the result will be gzip encoded.
      * Returns null if the result is not available.
      */
     public InputStream readResult(String requestKey, String suffix);
@@ -69,7 +89,7 @@ public interface CacheManager {
      * The caller should write the data to the output stream and then close it.
      * The cache manager will fork a thread to transfer the stream to cache.
      * If the caller does not close the outputstream a serious Thread leak will result. 
-     * Uses default suffix (.csv) and no compression
+     * Uses default suffix (.csv).
      */
     public Pipe upload(BatchRequest request);
 
@@ -78,11 +98,8 @@ public interface CacheManager {
      * The caller should write the data to the output stream and then close it.
      * The cache manager will fork a thread to transfer the stream to cache.
      * If the caller does not close the outputstream a serious Thread leak will result.
-     * @param request the request whose result is to be uploaded 
-     * @param suffix optional suffix to attach 
-     * @param compress if set to true then the upload will be gziped and .gz will added to the suffix
      */
-    public Pipe upload(BatchRequest request, String suffix, boolean compress);
+    public Pipe upload(BatchRequest request, String suffix);
     
     /**
      * Clear all cache entries - mostly useful for test harnesses

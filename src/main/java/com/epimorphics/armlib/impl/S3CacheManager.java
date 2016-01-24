@@ -138,6 +138,9 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
         if (contentType != null){
             meta.setContentType( contentType );
         }
+        if (compress) {
+            meta.setContentEncoding("gzip");
+        }
         s3client.putObject(bucket, objkey, result, meta);
     }
 
