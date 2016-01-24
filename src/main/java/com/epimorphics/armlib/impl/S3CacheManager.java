@@ -66,7 +66,7 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
 
     @Override
     public String getResultURL(String requestKey) {
-        return S3BaseURL + bucket + "/" + getS3Key(requestKey, defaultSuffix, true);
+        return S3BaseURL + bucket + "/" + getS3Key(requestKey, defaultSuffix);
     }
     
     private String getS3Key(String requestKey, String suffix, boolean sticky) {
