@@ -196,12 +196,13 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
         for (DynQueueEntry entry : getRawQueue()) {
             if (entry.getStatus() == StatusFlag.Pending) {
                 entry.setStarted();
+                BatchRequest request = entry.getBatchRequest(); 
                 try {
                     mapper.save(entry);
-                    return entry.getBatchRequest();
                 } catch (ConditionalCheckFailedException e) {
                     // This entry was started by someone else after all, skip it
                 }
+                return request;
             }
         }
         return null;
