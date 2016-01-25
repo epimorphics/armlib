@@ -10,10 +10,13 @@
 package com.epimorphics.armlib.impl;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,6 +33,7 @@ import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.CacheManager;
 import com.epimorphics.armlib.MediaTypes;
 import com.epimorphics.util.EpiException;
+import com.epimorphics.util.FileUtil;
 import com.epimorphics.util.NameUtils;
 
 public class S3CacheManager extends BaseCacheManager implements CacheManager {
@@ -37,6 +41,7 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
     public static final String TEMPORARY_SEGMENT = "cache/";
 
     protected String S3BaseURL = "https://s3-eu-west-1.amazonaws.com/";
+    protected String workArea = "/tmp";
     protected String bucket;
     protected String baseKey;
     protected Region region = Region.getRegion(Regions.EU_WEST_1);
@@ -57,6 +62,10 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
 
     public void setBaseKey(String baseKey) {
         this.baseKey = NameUtils.ensureLastSlash(baseKey);
+    }
+    
+    public void setWorkArea(String workArea) {
+        this.workArea = workArea;
     }
 
     @Override
@@ -123,8 +132,7 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
     @Override
     public void upload(BatchRequest request, String suffix, File result) {
         try {
-            InputStream stream = new BufferedInputStream( new FileInputStream(result) );
-            upload(request, suffix, stream);
+            doUpload(request, suffix, result);
         } catch (IOException e) {
             throw new EpiException("Failed to access upload file", e);
         }
@@ -132,6 +140,20 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
 
     @Override
     protected void upload(BatchRequest request, String suffix, InputStream result) {
+        try {
+            File workDir = new File(workArea);
+            File tempFile = new File(workDir, request.getKey()+ "." + suffix);
+            OutputStream out = new BufferedOutputStream(new FileOutputStream(tempFile));
+            FileUtil.copyResource(result, out);
+            out.close();
+            doUpload(request, suffix, tempFile);
+            tempFile.delete();
+        } catch (IOException e) {
+            throw new EpiException("Problem buffering results stream for upload");
+        }
+    }
+    
+    private void doUpload(BatchRequest request, String suffix, File result) throws IOException {
         String objkey = getS3Key(request.getKey(), suffix, request.isSticky());
         ObjectMetadata meta = new ObjectMetadata();
         String contentType = MediaTypes.getMediaTypeForExtension(suffix);
@@ -141,7 +163,9 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
         if (compress) {
             meta.setContentEncoding("gzip");
         }
-        s3client.putObject(bucket, objkey, result, meta);
+        meta.setContentLength( result.length() );
+        InputStream stream = new BufferedInputStream( new FileInputStream(result) );
+        s3client.putObject(bucket, objkey, stream, meta);
     }
 
     @Override
