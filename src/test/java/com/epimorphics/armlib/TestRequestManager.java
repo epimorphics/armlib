@@ -116,7 +116,7 @@ public class TestRequestManager {
     }
     
     // Test requires credentials and default profile for access to aws-expt
-//    @Ignore
+    @Ignore
     @Test
     public void testWithS3() throws IOException, InterruptedException {
         S3CacheManager cm = new S3CacheManager();
