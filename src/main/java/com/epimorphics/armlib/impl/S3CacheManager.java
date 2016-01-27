@@ -107,7 +107,7 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
             if (e.getStatusCode() == 404) {
                 return false;
             } else {
-                throw new EpiException("Problem access S3 bucket", e);
+                throw new EpiException("Problem accessing S3 bucket", e);
             }
         }
     }
