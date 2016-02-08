@@ -101,7 +101,7 @@ public class BatchRequest {
             if (pair.length == 2) {
                 parameters.add(param, pair[1]);
             } else {
-                parameters.addAll(param);
+                parameters.add(param, null);
             }
         }
         return parameters;

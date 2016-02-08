@@ -9,11 +9,15 @@
 
 package com.epimorphics.armlib;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertTrue;
+
 import javax.ws.rs.core.MultivaluedMap;
 
 import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
 import org.junit.Test;
-import static org.junit.Assert.*;
 
 public class TestBatchRequest {
 
@@ -43,7 +47,8 @@ public class TestBatchRequest {
         String keyOther = new BatchRequest("http://localhost/service", parameters).getKey();
         assertNotSame(key, keyOther);
         
-        parameters.addAll("key3");    // Just parameter no value
+        parameters.addFirst("key3", null);    // Just parameter no value
+        assertTrue( parameters.containsKey("key3") );
         
         request = new BatchRequest("http://localhost/service", parameters);
         String enc = request.getParameterString();
