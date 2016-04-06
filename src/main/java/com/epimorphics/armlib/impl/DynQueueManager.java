@@ -27,6 +27,7 @@ import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.ConsistentReads;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.TableNameOverride;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.Item;
@@ -61,8 +62,8 @@ import com.epimorphics.armlib.QueueManager;
  * useful for test/development.
  */
 public class DynQueueManager extends ComponentBase implements QueueManager, Startup {
-    public static final String QUEUE_TABLE = "Queue";
-    public static final String COMPLETED_TABLE = "Completed";
+    public static final String QUEUE_TABLE_BASE = "Queue";
+    public static final String COMPLETED_TABLE_BASE = "Completed";
     public static final String COMPLETED_TIME_INDEX = "CompletedIndexByTime";
 
     public static final String KEY_ATTRIBUTE = "Key";
@@ -73,6 +74,8 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     
     protected long checkInterval = 1000;
     protected String localTestEndpoint;
+    
+    public String tablePrefix = "";
     
     protected AmazonDynamoDBClient client;
     protected DynamoDB dynamoDB;
@@ -87,6 +90,18 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
         this.localTestEndpoint = endpoint;
     }
     
+    public void setTablePrefix(String prefix) {
+        tablePrefix = prefix;
+    }
+    
+    public String getQueueTableName() {
+        return tablePrefix + QUEUE_TABLE_BASE;
+    }
+    
+    public String getCompletedTableName() {
+        return tablePrefix + COMPLETED_TABLE_BASE;
+    }
+    
     @Override
     public void startup(App app) {
         super.startup(app);
@@ -96,7 +111,13 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
             client.setEndpoint("http://localhost:8000");
         }
         dynamoDB = new DynamoDB(client);
-        mapper = new DynamoDBMapper(client);
+        DynamoDBMapperConfig.Builder configBuilder =
+                new DynamoDBMapperConfig.Builder()
+                    .withConsistentReads( ConsistentReads.CONSISTENT );
+        if ( ! tablePrefix.isEmpty() ) {
+            configBuilder.setTableNameOverride( TableNameOverride.withTableNamePrefix(tablePrefix) );
+        }
+        mapper = new DynamoDBMapper(client, configBuilder.build());
         try {
             initDB();
         } catch (InterruptedException e) {
@@ -110,20 +131,20 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
         boolean hasProcessingQueue = false;
         for (Iterator<Table> i = tables.iterator(); i.hasNext();) {
             String tablename = i.next().getTableName();
-            if (tablename.equals(QUEUE_TABLE)) hasInQueue = true;
-            if (tablename.equals(COMPLETED_TABLE)) hasProcessingQueue = true;
+            if (tablename.equals( getQueueTableName() )) hasInQueue = true;
+            if (tablename.equals( getCompletedTableName() )) hasProcessingQueue = true;
         }
         
         List<Table> newTables = new ArrayList<>();
         if (!hasInQueue) {
-            log.info("Creating " + QUEUE_TABLE + " table");
+            log.info("Creating " + getQueueTableName() + " table");
             CreateTableRequest req = mapper.generateCreateTableRequest(DynQueueEntry.class);
             req.setProvisionedThroughput(new ProvisionedThroughput(5L, 5L));
             newTables.add( dynamoDB.createTable(req) );
         }
         
         if (!hasProcessingQueue) {
-            log.info("Creating " + COMPLETED_TABLE + " table");
+            log.info("Creating " + getCompletedTableName() + " table");
             GlobalSecondaryIndex index = new GlobalSecondaryIndex()
                     .withIndexName(COMPLETED_TIME_INDEX)
                     .withProvisionedThroughput(new ProvisionedThroughput()
@@ -175,8 +196,7 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     public List<DynQueueEntry> getRawQueue() {
         List<DynQueueEntry> entries = new ArrayList<>( 
                 mapper.scan(DynQueueEntry.class, 
-                        new DynamoDBScanExpression(),
-                        new DynamoDBMapperConfig(ConsistentReads.CONSISTENT)) );
+                        new DynamoDBScanExpression() ) );
         Collections.sort(entries);
         return entries;
     }    
@@ -236,9 +256,9 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     }
 
     private DynQueueEntry find(String requestKey) {
-        DynQueueEntry entry = mapper.load(DynQueueEntry.class, requestKey, new DynamoDBMapperConfig(ConsistentReads.CONSISTENT));
+        DynQueueEntry entry = mapper.load(DynQueueEntry.class, requestKey);
         if (entry == null){
-            entry = mapper.load(DynCompletedEntry.class, requestKey, new DynamoDBMapperConfig(ConsistentReads.CONSISTENT));
+            entry = mapper.load(DynCompletedEntry.class, requestKey);
         }
         return entry;
     }
@@ -325,7 +345,7 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
                                 .withString(":v_status", StatusFlag.Completed.name())
                                 .withNumber(":v_cutoff", cutoff))
                         .withNameMap(nameMap);
-        Index index = dynamoDB.getTable(COMPLETED_TABLE).getIndex(COMPLETED_TIME_INDEX);
+        Index index = dynamoDB.getTable( getCompletedTableName() ).getIndex(COMPLETED_TIME_INDEX);
         List<String> results = new ArrayList<>();
         for (Iterator<Item> i = index.query(spec).iterator(); i.hasNext();) {
             Item item = i.next();
@@ -335,7 +355,7 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     }
     
     private void deleteAll(List<String> deleteKeys) {
-        TableWriteItems items = new TableWriteItems(COMPLETED_TABLE);
+        TableWriteItems items = new TableWriteItems( getCompletedTableName() );
         for (String key : deleteKeys) {
             items.addPrimaryKeyToDelete( new PrimaryKey(KEY_ATTRIBUTE, key) );
         }

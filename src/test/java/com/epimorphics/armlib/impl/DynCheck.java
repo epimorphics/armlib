@@ -66,7 +66,7 @@ public class DynCheck {
     
     private void scanCompleted() {
         ScanResult result = queue.client.scan(new ScanRequest()
-                .withTableName(COMPLETED_TABLE)
+                .withTableName( queue.getQueueTableName() )
                 .withIndexName(COMPLETED_TIME_INDEX));
         System.out.println( String.format("Scanned %d returning %d", result.getScannedCount(), result.getCount()) );
         for (Map<String,AttributeValue> item : result.getItems()) {
@@ -86,7 +86,7 @@ public class DynCheck {
                                 .withString(":v_status", StatusFlag.Completed.name())
                                 .withNumber(":v_cutoff", cutoff))
                         .withNameMap(nameMap);
-        Index index = queue.dynamoDB.getTable(COMPLETED_TABLE).getIndex(COMPLETED_TIME_INDEX);
+        Index index = queue.dynamoDB.getTable( queue.getCompletedTableName() ).getIndex(COMPLETED_TIME_INDEX);
         List<String> results = new ArrayList<>();
         for (Iterator<Item> i = index.query(spec).iterator(); i.hasNext();) {
             Item item = i.next();
@@ -96,7 +96,7 @@ public class DynCheck {
     }
     
     private void deleteAll(List<String> deleteKeys) {
-        TableWriteItems items = new TableWriteItems(COMPLETED_TABLE);
+        TableWriteItems items = new TableWriteItems( queue.getCompletedTableName() );
         for (String key : deleteKeys) {
             items.addPrimaryKeyToDelete( new PrimaryKey(KEY_ATTRIBUTE, key) );
         }

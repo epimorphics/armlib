@@ -9,7 +9,6 @@
 
 package com.epimorphics.armlib;
 
-import static com.epimorphics.armlib.impl.DynQueueManager.COMPLETED_TABLE;
 import static com.epimorphics.armlib.impl.DynQueueManager.COMPLETED_TIME_INDEX;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -82,6 +81,7 @@ public class TestRequestManager {
         DynQueueManager queue = new DynQueueManager();
         queue.setCheckInterval(100);
         queue.setLocalTestEndpoint("http://localhost:8000");
+        queue.setTablePrefix("Test-");
         queue.startup(null);
         
         doTestStandardRequestManager(queue, cache);
@@ -104,7 +104,7 @@ public class TestRequestManager {
     
     private int countCompleted(DynQueueManager queue) {
         ScanResult result = queue.getDynamoClient().scan(new ScanRequest()
-                .withTableName(COMPLETED_TABLE)
+                .withTableName( queue.getCompletedTableName() )
                 .withIndexName(COMPLETED_TIME_INDEX));
         int count = 0;
         for (Map<String,AttributeValue> item : result.getItems()) {
