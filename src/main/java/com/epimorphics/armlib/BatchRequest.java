@@ -31,7 +31,7 @@ import com.epimorphics.util.EpiException;
  * @author <a href="mailto:dave@epimorphics.com">Dave Reynolds</a>
  */
 public class BatchRequest {
-    public static final int MAX_KEY_LENGTH = 800;
+    public static final int MAX_KEY_LENGTH = 200;
 
     protected String requestURI;
     protected MultivaluedMap<String, String> parameters;
