@@ -20,9 +20,9 @@ import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.s3.AmazonS3Client;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
@@ -44,12 +44,11 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
     protected String workArea = "/tmp";
     protected String bucket;
     protected String baseKey;
-    protected Region region = Region.getRegion(Regions.EU_WEST_1);
-    protected AmazonS3Client s3client;
+    protected Regions region = Regions.EU_WEST_1;
+    protected AmazonS3 s3client;
     
     public S3CacheManager() {
-        s3client = new AmazonS3Client();
-        s3client.setRegion( region );
+        s3client = AmazonS3ClientBuilder.standard().withRegion(region).build();
     }
     
     public void setS3BaseURL(String s3BaseURL) {

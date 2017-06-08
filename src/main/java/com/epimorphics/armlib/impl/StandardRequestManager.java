@@ -18,11 +18,15 @@ import com.epimorphics.armlib.BatchStatus.StatusFlag;
 import com.epimorphics.armlib.CacheManager;
 import com.epimorphics.armlib.QueueManager;
 import com.epimorphics.armlib.RequestManager;
+import com.epimorphics.util.EpiException;
 
 /**
  * Standard implementation of request manager.
  */
 public class StandardRequestManager extends ComponentBase implements RequestManager {
+    protected static int RETRY_DELAY_MS = 250;
+    protected static int RETRY_COUNT = 50;
+    
     protected QueueManager queueManager;
     protected CacheManager cacheManager;
     
@@ -106,7 +110,19 @@ public class StandardRequestManager extends ComponentBase implements RequestMana
                     status.setPositionInQueue(0);
                 }
             } else if (status.getStatus() == StatusFlag.Completed) {
-                // Supposed to have been completed but not in cache, have to assume answer has been lost
+                // Supposed to have been completed but wasn't in cache when we checked earlier
+                // Might have completed in the interim or might be some delay in cache visibility
+                for (int i = 0; i < RETRY_COUNT; i++) {
+                    if (cacheManager.isReady(requestKey)) {
+                        return new BatchStatus(requestKey, cacheManager.getResultURL(requestKey), StatusFlag.Completed);
+                    }
+                    try {
+                        Thread.sleep(RETRY_DELAY_MS);
+                    } catch (InterruptedException e) {
+                        throw new EpiException(e);
+                    }
+                }
+                // Give it, must have got lost somewhere
                 return new BatchStatus(requestKey, StatusFlag.Unknown);
             }
             return status;

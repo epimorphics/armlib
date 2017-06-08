@@ -120,7 +120,7 @@ public class TestRequestManager {
     @Test
     public void testWithS3() throws IOException, InterruptedException {
         S3CacheManager cm = new S3CacheManager();
-        cm.setBucket("epi-repository");
+        cm.setBucket("epi-test-bucket");
         cm.setBaseKey("test");
 
         MemQueueManager queue = new MemQueueManager();

@@ -20,14 +20,15 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.amazonaws.regions.Region;
+import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
 import com.amazonaws.regions.Regions;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.ConsistentReads;
 import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.TableNameOverride;
+import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
 import com.amazonaws.services.dynamodbv2.document.DynamoDB;
 import com.amazonaws.services.dynamodbv2.document.Index;
 import com.amazonaws.services.dynamodbv2.document.Item;
@@ -77,10 +78,10 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     
     public String tablePrefix = "";
     
-    protected AmazonDynamoDBClient client;
+    protected AmazonDynamoDB client;
     protected DynamoDB dynamoDB;
     protected DynamoDBMapper mapper;
-    protected Region region = Region.getRegion(Regions.EU_WEST_1);
+    protected Regions region = Regions.EU_WEST_1;
     
     public void setCheckInterval(long checkInterval) {
         this.checkInterval = checkInterval;
@@ -105,11 +106,14 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     @Override
     public void startup(App app) {
         super.startup(app);
-        client = new AmazonDynamoDBClient();
-        client.setRegion(region);
+        AmazonDynamoDBClientBuilder builder = AmazonDynamoDBClientBuilder.standard();
         if (localTestEndpoint != null) {
-            client.setEndpoint("http://localhost:8000");
+            builder.setEndpointConfiguration(
+                    new EndpointConfiguration(localTestEndpoint, region.getName()) );
+        } else {
+            builder.setRegion( region.getName() );
         }
+        client = builder.build();
         dynamoDB = new DynamoDB(client);
         DynamoDBMapperConfig.Builder configBuilder =
                 new DynamoDBMapperConfig.Builder()
@@ -370,7 +374,7 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
      * Exposed only for testing purposes
      * @return
      */
-    public AmazonDynamoDBClient getDynamoClient() {
+    public AmazonDynamoDB getDynamoClient() {
         return client;
     }
     
