@@ -139,16 +139,17 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
 
     @Override
     protected void upload(BatchRequest request, String suffix, InputStream result) {
+        File workDir = new File(workArea);
+        File tempFile = new File(workDir, request.getKey()+ "." + suffix);
         try {
-            File workDir = new File(workArea);
-            File tempFile = new File(workDir, request.getKey()+ "." + suffix);
             OutputStream out = new BufferedOutputStream(new FileOutputStream(tempFile));
             FileUtil.copyResource(result, out);
             out.close();
             doUpload(request, suffix, tempFile);
-            tempFile.delete();
         } catch (IOException e) {
             throw new EpiException("Problem buffering results stream for upload");
+        } finally {
+            tempFile.delete();
         }
     }
     
@@ -163,8 +164,9 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
             meta.setContentEncoding("gzip");
         }
         meta.setContentLength( result.length() );
-        InputStream stream = new BufferedInputStream( new FileInputStream(result) );
-        s3client.putObject(bucket, objkey, stream, meta);
+        try (InputStream stream = new BufferedInputStream( new FileInputStream(result) )) {
+            s3client.putObject(bucket, objkey, stream, meta);
+        }
     }
 
     @Override

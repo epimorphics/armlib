@@ -31,4 +31,6 @@ public interface Pipe {
      * This should only be called after the producer has closed the stream;
      */
     public void waitForCompletion() throws InterruptedException;
+
+    public void stop();
 }

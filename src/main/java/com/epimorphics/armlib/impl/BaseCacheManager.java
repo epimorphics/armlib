@@ -101,8 +101,11 @@ public abstract class BaseCacheManager implements CacheManager {
         @Override
         public void waitForCompletion() throws InterruptedException {
             runner.join();
-        }        
+        }
 
+        @Override
+        public void stop() {
+            runner.interrupt();
+        }
     }
-
 }
