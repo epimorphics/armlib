@@ -4,6 +4,10 @@ import com.epimorphics.armlib.BatchRequest
 import com.epimorphics.armlib.BatchStatus
 import com.epimorphics.armlib.QueueManager
 import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap
+import org.springframework.context.event.ContextRefreshedEvent
+import org.springframework.context.event.ContextStartedEvent
+import org.springframework.context.event.EventListener
+import org.springframework.core.annotation.Order
 import org.springframework.dao.IncorrectResultSizeDataAccessException
 import org.springframework.jdbc.core.ConnectionCallback
 import org.springframework.jdbc.core.JdbcOperations
@@ -13,7 +17,7 @@ import javax.ws.rs.core.MultivaluedMap
 
 class SqlQueueManager(
         private val jdbc: JdbcOperations,
-        private val config: Config
+        private val config: Config = Config(false, 500)
 ): QueueManager {
 
     private val incompleteStatus get() = arrayOf(
@@ -21,12 +25,14 @@ class SqlQueueManager(
             BatchStatus.StatusFlag.InProgress.name
     )
 
+    @Order(0)
+    @EventListener(ContextRefreshedEvent::class)
     fun onStart() {
         jdbc.execute(ConnectionCallback { con ->
-            con.metaData.getTables(null, null, "QueueEntry", arrayOf("TABLE")).apply {
+            con.metaData.getTables(null, null, "queue", arrayOf("TABLE")).apply {
                 if (!next()) {
                     val sql = StringBuilder()
-                            .appendln("CREATE TABLE QueueEntry (")
+                            .appendln("CREATE TABLE queue (")
                             .appendln("index serial PRIMARY KEY,")
                             .appendln("key varchar(255) NOT NULL,")
                             .appendln("status varchar(50) NOT NULL,")
@@ -35,8 +41,8 @@ class SqlQueueManager(
                             .appendln("estimatedTime bigint,")
                             .appendln("startTime bigint")
                             .appendln(");")
-                            .appendln("CREATE INDEX key_idx ON QueueEntry (key) ;")
-                            .appendln("CREATE INDEX status_idx ON QueueEntry (status) ;")
+                            .appendln("CREATE INDEX ON queue (key) ;")
+                            .appendln("CREATE INDEX ON queue (status) ;")
                             .toString()
                     con.createStatement().execute(sql)
                 }
@@ -59,8 +65,8 @@ class SqlQueueManager(
         val requestUri = request.requestURI
 
         val sql = StringBuilder()
-                .appendln("DELETE FROM QueueEntry WHERE key = ? AND status = ANY(?) ;")
-                .appendln("INSERT INTO QueueEntry (key, status, requestUri, params, estimatedTime) VALUES (?, ?, ?, ?, ?) ;")
+                .appendln("DELETE FROM queue WHERE key = ? AND status = ANY(?) ;")
+                .appendln("INSERT INTO queue (key, status, requestUri, params, estimatedTime) VALUES (?, ?, ?, ?, ?) ;")
                 .toString()
 
         jdbc.update(sql, key, incompleteStatus, key, status.name, requestUri, request.parameterString, request.estimatedTime)
@@ -77,7 +83,7 @@ class SqlQueueManager(
     override fun getQueue(): MutableList<BatchStatus> {
         val sql = StringBuilder()
                 .appendln("SELECT *")
-                .appendln("FROM QueueEntry")
+                .appendln("FROM queue")
                 .appendln("WHERE status = ANY(?)")
                 .appendln("ORDER BY index ASC ;")
                 .toString()
@@ -94,7 +100,7 @@ class SqlQueueManager(
     override fun nextRequest(timeout: Long): BatchRequest? {
         val sql = StringBuilder()
                 .appendln("SELECT *")
-                .appendln("FROM QueueEntry")
+                .appendln("FROM queue")
                 .appendln("WHERE status = ?")
                 .appendln("ORDER BY index ASC")
                 .appendln("LIMIT 1 ;")
@@ -107,6 +113,7 @@ class SqlQueueManager(
                         startQueueEntry(key)
                     }
         } catch (e: IncorrectResultSizeDataAccessException) {
+            Thread.sleep(timeout)
             null
         }
     }
@@ -114,7 +121,7 @@ class SqlQueueManager(
     private fun startQueueEntry(key: String) {
         val now = System.currentTimeMillis()
         val sql = StringBuilder()
-                .appendln("UPDATE QueueEntry")
+                .appendln("UPDATE queue")
                 .appendln("SET status = ?, startTime = ?")
                 .appendln("WHERE key = ?")
                 .appendln("AND status = ? ;")
@@ -149,7 +156,7 @@ class SqlQueueManager(
 
     private fun getQueueEntry(key: String): QueueEntry? {
         val sql = StringBuilder()
-                .appendln("SELECT * FROM QueueEntry")
+                .appendln("SELECT * FROM queue")
                 .appendln("WHERE key = ?")
                 .appendln("ORDER BY index DESC")
                 .appendln("LIMIT 1 ;")
@@ -168,7 +175,7 @@ class SqlQueueManager(
         val requestUri = request.requestURI
 
         jdbc.update(
-                "INSERT INTO QueueEntry (key, status, requestUri, params, estimatedTime) VALUES (?, ?, ?, ?, ?) ;",
+                "INSERT INTO queue (key, status, requestUri, params, estimatedTime) VALUES (?, ?, ?, ?, ?) ;",
                 request.key,
                 status.name,
                 request.requestURI,
@@ -181,7 +188,7 @@ class SqlQueueManager(
 
     private fun updateQueueEntry(key: String, status: BatchStatus.StatusFlag) {
         val sql = StringBuilder()
-                .appendln("UPDATE QueueEntry")
+                .appendln("UPDATE queue")
                 .appendln("SET status = ?")
                 .appendln("WHERE key = ?")
                 .appendln("AND status = ANY(?) ;")
@@ -191,14 +198,14 @@ class SqlQueueManager(
     }
 
     private fun deleteQueueEntry(key: String) {
-        jdbc.update("DELETE FROM QueueEntry WHERE key = ? AND status = ANY(?);", key, incompleteStatus)
+        jdbc.update("DELETE FROM queue WHERE key = ? AND status = ANY(?);", key, incompleteStatus)
     }
 
-    private val rowMapper: RowMapper<QueueEntry> get() = RowMapper { rs: ResultSet, _: Int ->
+    private val rowMapper: RowMapper<QueueEntry> = RowMapper { rs: ResultSet, _: Int ->
         val key = rs.getString("key")
         val status = rs.getString("status").let(BatchStatus.StatusFlag::valueOf)
         val requestUri = rs.getString("requestUri")
-        val params = rs.getString("params")?.let(BatchRequest::decodeParameterString) ?: MultivaluedStringMap()
+        val params = rs.getString("params").takeUnless(String::isEmpty)?.let(BatchRequest::decodeParameterString) ?: MultivaluedStringMap()
         val estimatedTime = rs.getLong("estimatedTime")
         val startTime = rs.getLong("startTime")
 

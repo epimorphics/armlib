@@ -91,7 +91,7 @@ class SqlQueueManagerTest {
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
         manager.submit(BatchRequest("test", "foo=z&bar=w"))
 
-        jdbc.query("SELECT * FROM QueueEntry ORDER BY index") { rs ->
+        jdbc.query("SELECT * FROM queue ORDER BY index") { rs ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -114,7 +114,7 @@ class SqlQueueManagerTest {
     fun submit_existingKey_pending_returnsStatus() {
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -132,7 +132,7 @@ class SqlQueueManagerTest {
         manager.nextRequest()
 
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -151,7 +151,7 @@ class SqlQueueManagerTest {
 
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
 
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -170,7 +170,7 @@ class SqlQueueManagerTest {
 
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
 
-        jdbc.query("SELECT * FROM QueueEntry ORDER BY index") { rs ->
+        jdbc.query("SELECT * FROM queue ORDER BY index") { rs ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -194,7 +194,7 @@ class SqlQueueManagerTest {
         manager.resubmit(BatchRequest("test", "foo=x&bar=y"))
         manager.resubmit(BatchRequest("test", "foo=z&bar=w"))
 
-        jdbc.query("SELECT * FROM QueueEntry ORDER BY index") { rs ->
+        jdbc.query("SELECT * FROM queue ORDER BY index") { rs ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -217,7 +217,7 @@ class SqlQueueManagerTest {
     fun resubmit_existingKey_pending_replacesEntry_returnsStatus() {
         manager.resubmit(BatchRequest("test", "foo=x&bar=y"))
         manager.resubmit(BatchRequest("test", "foo=x&bar=y"))
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(2)
                 key("test_bar_y_foo_x")
@@ -235,7 +235,7 @@ class SqlQueueManagerTest {
         manager.nextRequest()
 
         manager.resubmit(BatchRequest("test", "foo=x&bar=y"))
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(2)
                 key("test_bar_y_foo_x")
@@ -254,7 +254,7 @@ class SqlQueueManagerTest {
 
         manager.resubmit(BatchRequest("test", "foo=x&bar=y"))
 
-        jdbc.query("SELECT * FROM QueueEntry ORDER BY index") { rs ->
+        jdbc.query("SELECT * FROM queue ORDER BY index") { rs ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -280,7 +280,7 @@ class SqlQueueManagerTest {
 
         manager.resubmit(BatchRequest("test", "foo=x&bar=y"))
 
-        jdbc.query("SELECT * FROM QueueEntry ORDER BY index") { rs ->
+        jdbc.query("SELECT * FROM queue ORDER BY index") { rs ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -435,7 +435,7 @@ class SqlQueueManagerTest {
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
         manager.nextRequest()
 
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -452,7 +452,7 @@ class SqlQueueManagerTest {
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
         manager.finishRequest("test_bar_y_foo_x")
 
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -470,7 +470,7 @@ class SqlQueueManagerTest {
         manager.nextRequest()
         manager.abortRequest("test_bar_y_foo_x")
 
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
@@ -487,7 +487,7 @@ class SqlQueueManagerTest {
         manager.submit(BatchRequest("test", "foo=x&bar=y"))
         manager.failRequest("test_bar_y_foo_x")
 
-        jdbc.queryForObject("SELECT * FROM QueueEntry") { rs, _ ->
+        jdbc.queryForObject("SELECT * FROM queue") { rs, _ ->
             verify(rs) {
                 index(1)
                 key("test_bar_y_foo_x")
