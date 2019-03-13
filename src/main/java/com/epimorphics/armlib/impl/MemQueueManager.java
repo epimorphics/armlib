@@ -18,7 +18,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.epimorphics.appbase.core.ComponentBase;
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.BatchStatus;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
@@ -28,14 +27,14 @@ import com.epimorphics.armlib.QueueManager;
  * Non-persistent, non-distributed, implementation of queue manager. Only 
  * useful for test/development.
  */
-public class MemQueueManager extends ComponentBase implements QueueManager {
+public class MemQueueManager implements QueueManager {
     static Logger log = LoggerFactory.getLogger( MemQueueManager.class );
     
     protected LinkedList<QueueEntry> queue = new LinkedList<>();
     protected List<QueueEntry> completed = new LinkedList<>();
     protected Map<String, QueueEntry> index = new HashMap<>();
     protected long checkInterval = 100;
-    
+
     public void setCheckInterval(long checkInterval) {
         this.checkInterval = checkInterval;
     }

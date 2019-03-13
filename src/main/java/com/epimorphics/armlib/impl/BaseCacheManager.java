@@ -17,13 +17,12 @@ import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.util.zip.GZIPOutputStream;
 
-import com.epimorphics.appbase.core.ComponentBase;
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.CacheManager;
 import com.epimorphics.armlib.Pipe;
 import com.epimorphics.util.EpiException;
 
-public abstract class BaseCacheManager extends ComponentBase implements CacheManager {
+public abstract class BaseCacheManager implements CacheManager {
     protected String defaultSuffix = "csv";
     protected boolean compress = false;
     

@@ -35,7 +35,7 @@ public class FileCacheManager extends BaseCacheManager implements CacheManager {
     protected String urlPrefix = "http://localhost/service/report/";
     
     public void setCacheDir(String cacheDir) {
-        this.cacheDir = NameUtils.ensureLastSlash( expandFileLocation(cacheDir) );
+        this.cacheDir = NameUtils.ensureLastSlash( cacheDir );
         FileUtil.ensureDir(cacheDir);        
         FileUtil.ensureDir(this.cacheDir + PERSISTENT_SEGMENT);        
         FileUtil.ensureDir(this.cacheDir + TEMPORARY_SEGMENT);        

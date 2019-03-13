@@ -40,7 +40,7 @@ public class DynCheck {
         queue = new DynQueueManager();
         queue.setCheckInterval(100);
         queue.setLocalTestEndpoint("http://localhost:8000");
-        queue.startup(null);
+        queue.startup();
     }
     
     

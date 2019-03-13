@@ -82,7 +82,7 @@ public class TestRequestManager {
         queue.setCheckInterval(100);
         queue.setLocalTestEndpoint("http://localhost:8000");
         queue.setTablePrefix("Test-");
-        queue.startup(null);
+        queue.startup();
         
         doTestStandardRequestManager(queue, cache);
         addCompletedRequest(queue, 1);

@@ -11,7 +11,6 @@ package com.epimorphics.armlib.impl;
 
 import java.util.List;
 
-import com.epimorphics.appbase.core.ComponentBase;
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.BatchStatus;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
@@ -19,21 +18,28 @@ import com.epimorphics.armlib.CacheManager;
 import com.epimorphics.armlib.QueueManager;
 import com.epimorphics.armlib.RequestManager;
 import com.epimorphics.util.EpiException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
 
 /**
  * Standard implementation of request manager.
  */
-public class StandardRequestManager extends ComponentBase implements RequestManager {
+@Component
+@Lazy
+public class StandardRequestManager implements RequestManager {
     protected static int RETRY_DELAY_MS = 250;
     protected static int RETRY_COUNT = 50;
     
     protected QueueManager queueManager;
     protected CacheManager cacheManager;
     
+    @Autowired
     public void setQueueManager(QueueManager queue) {
         this.queueManager = queue;
     }
 
+    @Autowired
     public void setCacheManager(CacheManager cache) {
         this.cacheManager = cache;
     }

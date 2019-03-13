@@ -50,19 +50,18 @@ import com.amazonaws.services.dynamodbv2.model.Projection;
 import com.amazonaws.services.dynamodbv2.model.ProjectionType;
 import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
 import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
-import com.epimorphics.appbase.core.App;
-import com.epimorphics.appbase.core.ComponentBase;
-import com.epimorphics.appbase.core.Startup;
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.BatchStatus;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
 import com.epimorphics.armlib.QueueManager;
+import org.springframework.context.event.ContextRefreshedEvent;
+import org.springframework.context.event.EventListener;
 
 /**
  * Non-persistent, non-distributed, implementation of queue manager. Only 
  * useful for test/development.
  */
-public class DynQueueManager extends ComponentBase implements QueueManager, Startup {
+public class DynQueueManager implements QueueManager {
     public static final String QUEUE_TABLE_BASE = "Queue";
     public static final String COMPLETED_TABLE_BASE = "Completed";
     public static final String COMPLETED_TIME_INDEX = "CompletedIndexByTime";
@@ -103,9 +102,8 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
         return tablePrefix + COMPLETED_TABLE_BASE;
     }
     
-    @Override
-    public void startup(App app) {
-        super.startup(app);
+    @EventListener(ContextRefreshedEvent.class)
+    public void startup() {
         AmazonDynamoDBClientBuilder builder = AmazonDynamoDBClientBuilder.standard();
         if (localTestEndpoint != null) {
             builder.setEndpointConfiguration(
