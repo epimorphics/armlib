@@ -15,8 +15,6 @@ import java.util.Optional;
 
 import org.apache.jena.atlas.json.JsonObject;
 
-import com.epimorphics.json.JsonUtil;
-
 /**
  * Represents the status of a batch request. Some query operations 
  * will include only minimal status information so some of the status
@@ -137,19 +135,15 @@ public class BatchStatus {
     }
     
     public JsonObject asJson() {
-        JsonObject o = JsonUtil.makeJson("key", key, "status", status.toString());
+        JsonObject o = new JsonObject();
+        o.put("key", key);
+        o.put("status", status.name());
         if (url != null) {
             o.put("url", url);
         }
-        if (positionInQueue.isPresent()) {
-            o.put("positionInQueue", positionInQueue.get());
-        }
-        if (eta.isPresent()) {
-            o.put("eta", eta.get());
-        }
-        if (started.isPresent()) {
-            o.put("started",  new SimpleDateFormat().format( new Date( started.get() ) ) );
-        }
+        positionInQueue.ifPresent( v -> o.put("positionInQueue", v) );
+        eta.ifPresent( v -> o.put("eta", v));
+        started.ifPresent( v -> o.put("started", v));
         return o;
     }
     
