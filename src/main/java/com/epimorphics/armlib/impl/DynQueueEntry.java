@@ -9,20 +9,18 @@
 
 package com.epimorphics.armlib.impl;
 
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBAttribute;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBHashKey;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBIgnore;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBTable;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBVersionAttribute;
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.BatchStatus;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Represents an in-progress or completed queue entry, including enough information to reconstruct
- * the original request, in a form suitable for use with AWS DynamoDB
+ * the original request, in a form suitable for use with AWS DynamoDB.
  */
-@DynamoDBTable(tableName="Queue")
 public class DynQueueEntry implements Comparable<DynQueueEntry> {
     protected String requestURI;
     protected String parameters;
@@ -33,10 +31,10 @@ public class DynQueueEntry implements Comparable<DynQueueEntry> {
     protected String statusStr;
     protected Long started;
     protected Integer version;
-    
+
     public DynQueueEntry() {
     }
-    
+
     public DynQueueEntry(BatchRequest request) {
         this.requestURI = request.getRequestURI();
         this.parameters = request.getParameterString();
@@ -45,13 +43,11 @@ public class DynQueueEntry implements Comparable<DynQueueEntry> {
         this.sticky = request.isSticky();
         this.created = System.currentTimeMillis();
     }
-    
-    @DynamoDBIgnore
-    public BatchStatus.StatusFlag getStatus() {
+
+    public StatusFlag getStatus() {
         return statusStr == null ? StatusFlag.Pending : StatusFlag.valueOf(statusStr);
     }
-    
-    @DynamoDBIgnore
+
     public BatchStatus getBatchStatus() {
         BatchStatus s = new BatchStatus(key, getStatus());
         if (started != null) {
@@ -61,94 +57,120 @@ public class DynQueueEntry implements Comparable<DynQueueEntry> {
             s.setEstimatedTime(estimatedTime);
         }
         return s;
-    }    
-    
-    @DynamoDBIgnore
+    }
+
     public BatchRequest getBatchRequest() {
         BatchRequest req = new BatchRequest(requestURI, parameters, sticky);
-        req.setKey( key );
+        req.setKey(key);
         req.setEstimatedTime(estimatedTime);
         return req;
     }
-    
-    @DynamoDBIgnore
+
     public void setStarted() {
-        started = System.currentTimeMillis();
-        statusStr = StatusFlag.InProgress.name();
+        this.started = System.currentTimeMillis();
+        this.statusStr = StatusFlag.InProgress.name();
     }
 
-    @DynamoDBHashKey(attributeName="Key")  
     public String getKey() {
         return key;
     }
+
     public void setKey(String key) {
         this.key = key;
     }
-    
-    @DynamoDBAttribute(attributeName="RequestURI") 
+
     public String getRequestURI() {
         return requestURI;
     }
+
     public void setRequestURI(String requestURI) {
         this.requestURI = requestURI;
     }
-    
-    @DynamoDBAttribute(attributeName="Parameters") 
+
     public String getParameters() {
         return parameters;
     }
+
     public void setParameters(String parameters) {
         this.parameters = parameters;
     }
-    
-    @DynamoDBAttribute(attributeName="EstimatedTime") 
+
     public Long getEstimatedTime() {
         return estimatedTime;
     }
+
     public void setEstimatedTime(Long estimatedTime) {
         this.estimatedTime = estimatedTime;
     }
-    
-    @DynamoDBAttribute(attributeName="Sticky")     
+
     public Boolean isSticky() {
         return sticky;
     }
+
     public void setSticky(Boolean sticky) {
         this.sticky = sticky;
     }
 
-    @DynamoDBAttribute(attributeName="Created") 
     public Long getCreated() {
         return created;
     }
+
     public void setCreated(Long created) {
         this.created = created;
     }
-    
-    @DynamoDBAttribute(attributeName="Status") 
+
     public String getStatusStr() {
         return statusStr;
     }
-    public void setStatusStr(String status) {
-        this.statusStr = status;
+
+    public void setStatusStr(String statusStr) {
+        this.statusStr = statusStr;
     }
-    
-    @DynamoDBAttribute(attributeName="Started") 
+
     public Long getStarted() {
         return started;
     }
+
     public void setStarted(Long started) {
         this.started = started;
     }
 
-    @DynamoDBVersionAttribute
     public Integer getVersion() {
         return version;
     }
+
     public void setVersion(Integer version) {
         this.version = version;
-    }    
-    
+    }
+
+    public Map<String, AttributeValue> toItemMap() {
+        Map<String, AttributeValue> item = new HashMap<>();
+        item.put("Key", AttributeValue.builder().s(key).build());
+        item.put("RequestURI", AttributeValue.builder().s(requestURI).build());
+        item.put("Parameters", AttributeValue.builder().s(parameters).build());
+        if (estimatedTime != null) item.put("EstimatedTime", AttributeValue.builder().n(estimatedTime.toString()).build());
+        if (sticky != null) item.put("Sticky", AttributeValue.builder().bool(sticky).build());
+        if (created != null) item.put("Created", AttributeValue.builder().n(created.toString()).build());
+        if (statusStr != null) item.put("Status", AttributeValue.builder().s(statusStr).build());
+        if (started != null) item.put("Started", AttributeValue.builder().n(started.toString()).build());
+        if (version != null) item.put("Version", AttributeValue.builder().n(version.toString()).build());
+        return item;
+    }
+
+    public static DynQueueEntry fromItemMap(Map<String, AttributeValue> item) {
+        DynQueueEntry entry = new DynQueueEntry();
+        entry.setKey(item.get("Key").s());
+        entry.setRequestURI(item.get("RequestURI").s());
+        entry.setParameters(item.get("Parameters").s());
+        if (item.containsKey("EstimatedTime")) entry.setEstimatedTime(Long.valueOf(item.get("EstimatedTime").n()));
+        if (item.containsKey("Sticky")) entry.setSticky(item.get("Sticky").bool());
+        if (item.containsKey("Created")) entry.setCreated(Long.valueOf(item.get("Created").n()));
+        if (item.containsKey("Status")) entry.setStatusStr(item.get("Status").s());
+        if (item.containsKey("Started")) entry.setStarted(Long.valueOf(item.get("Started").n()));
+        if (item.containsKey("Version")) entry.setVersion(Integer.valueOf(item.get("Version").n()));
+        return entry;
+    }
+
     @Override
     public int compareTo(DynQueueEntry other) {
         return created.compareTo(other.created);

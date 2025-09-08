@@ -30,10 +30,10 @@ import org.apache.jena.util.FileManager;
 import org.glassfish.jersey.internal.util.collection.MultivaluedStringMap;
 import org.junit.Ignore;
 import org.junit.Test;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
+import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
 import com.epimorphics.armlib.impl.DynQueueManager;
 import com.epimorphics.armlib.impl.FileCacheManager;
@@ -71,7 +71,7 @@ public class TestRequestManager {
     }
     
     // Test requires local instance of DynamoDB running on port 8000
-    // @Ignore
+    //@Ignore
     @Test
     public void testWithDyn() throws IOException, InterruptedException {
         FileCacheManager cache = new FileCacheManager();
@@ -103,12 +103,13 @@ public class TestRequestManager {
     }
     
     private int countCompleted(DynQueueManager queue) {
-        ScanResult result = queue.getDynamoClient().scan(new ScanRequest()
-                .withTableName( queue.getCompletedTableName() )
-                .withIndexName(COMPLETED_TIME_INDEX));
+        ScanResponse result = queue.getDynamoClient().scan(ScanRequest.builder()
+                .tableName(queue.getCompletedTableName())
+                .indexName(COMPLETED_TIME_INDEX)
+                .build());
         int count = 0;
-        for (Map<String,AttributeValue> item : result.getItems()) {
-            if (item.get("Status").getS().equals(StatusFlag.Completed.name())) {
+        for (Map<String,AttributeValue> item : result.items()) {
+            if (item.get("Status").s().equals(StatusFlag.Completed.name())) {
                 count++;
             }
         }
@@ -116,7 +117,7 @@ public class TestRequestManager {
     }
     
     // Test requires credentials and default profile for access to aws-expt
-    // @Ignore
+    //@Ignore
     @Test
     public void testWithS3() throws IOException, InterruptedException {
         S3CacheManager cm = new S3CacheManager();

@@ -9,34 +9,34 @@
 
 package com.epimorphics.armlib.impl;
 
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBAttribute;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBTable;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+
+import java.util.Map;
 
 /**
  * Represents an in-progress or completed queue entry, including enough information to reconstruct
  * the original request, in a form suitable for use with AWS DynamoDB
  */
-@DynamoDBTable(tableName="Completed")
 public class DynCompletedEntry extends DynQueueEntry {
     protected Long finished;
-    
+
     public DynCompletedEntry() {
     }
-    
+
     public DynCompletedEntry(DynQueueEntry entry) {
-        requestURI    = entry.requestURI;
-        parameters    = entry.parameters;
-        key           = entry.key;
-        estimatedTime = entry.estimatedTime;
-        sticky        = entry.sticky;
-        created       = entry.created;
-        statusStr     = StatusFlag.Completed.name();
-        started       = entry.started;
-        finished      = System.currentTimeMillis();
+        super();
+        this.setRequestURI(entry.getRequestURI());
+        this.setParameters(entry.getParameters());
+        this.setKey(entry.getKey());
+        this.setEstimatedTime(entry.getEstimatedTime());
+        this.setSticky(entry.isSticky());
+        this.setCreated(entry.getCreated());
+        this.setStatusStr(entry.getStatusStr());
+        this.setStarted(entry.getStarted());
+        this.finished = System.currentTimeMillis();
     }
-    
-    @DynamoDBAttribute(attributeName="Finished") 
+
     public Long getFinished() {
         return finished;
     }
@@ -45,5 +45,20 @@ public class DynCompletedEntry extends DynQueueEntry {
         this.finished = finished;
     }
 
-    
+    @Override
+    public Map<String, AttributeValue> toItemMap() {
+        Map<String, AttributeValue> item = super.toItemMap();
+        if (finished != null) {
+            item.put("Finished", AttributeValue.builder().n(finished.toString()).build());
+        }
+        return item;
+    }
+
+    public static DynCompletedEntry fromItemMap(Map<String, AttributeValue> item) {
+        DynCompletedEntry entry = new DynCompletedEntry(DynQueueEntry.fromItemMap(item));
+        if (item.containsKey("Finished")) {
+            entry.setFinished(Long.valueOf(item.get("Finished").n()));
+        }
+        return entry;
+    }
 }
