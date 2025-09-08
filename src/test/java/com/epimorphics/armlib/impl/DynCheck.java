@@ -9,26 +9,16 @@
 
 package com.epimorphics.armlib.impl;
 
-import static com.epimorphics.armlib.impl.DynQueueManager.*;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import com.amazonaws.services.dynamodbv2.document.Index;
-import com.amazonaws.services.dynamodbv2.document.Item;
-import com.amazonaws.services.dynamodbv2.document.PrimaryKey;
-import com.amazonaws.services.dynamodbv2.document.TableWriteItems;
-import com.amazonaws.services.dynamodbv2.document.spec.BatchWriteItemSpec;
-import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
-import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
-import com.amazonaws.services.dynamodbv2.model.AttributeValue;
-import com.amazonaws.services.dynamodbv2.model.ScanRequest;
-import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
+import software.amazon.awssdk.services.dynamodb.model.*;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static com.epimorphics.armlib.impl.DynQueueManager.*;
 
 /**
  * Scratch pad for experimenting with DynamoDB
@@ -65,48 +55,64 @@ public class DynCheck {
     }
     
     private void scanCompleted() {
-        ScanResult result = queue.client.scan(new ScanRequest()
-                .withTableName( queue.getQueueTableName() )
-                .withIndexName(COMPLETED_TIME_INDEX));
-        System.out.println( String.format("Scanned %d returning %d", result.getScannedCount(), result.getCount()) );
-        for (Map<String,AttributeValue> item : result.getItems()) {
+        ScanResponse result = queue.client.scan(ScanRequest.builder()
+                .tableName(queue.getQueueTableName())
+                .indexName(COMPLETED_TIME_INDEX)
+                .build());
+        System.out.println( String.format("Scanned %d returning %d", result.scannedCount(), result.count()) );
+        for (Map<String,AttributeValue> item : result.items()) {
             System.out.println(" - " + item);
         }
     }
     
     protected final int BATCH_SIZE = 5;  // Can't be more than 25
-    
+
+
     private List<String> listCompletedOlderThan(long cutoff) {
-        Map<String, String> nameMap = new HashMap<>();
-        nameMap.put("#s", STATUS_ATTRIBUTE);
-        QuerySpec spec = new QuerySpec()
-                .withMaxResultSize(BATCH_SIZE)
-                .withKeyConditionExpression("#s = :v_status and Finished < :v_cutoff")
-                        .withValueMap(new ValueMap()
-                                .withString(":v_status", StatusFlag.Completed.name())
-                                .withNumber(":v_cutoff", cutoff))
-                        .withNameMap(nameMap);
-        Index index = queue.dynamoDB.getTable( queue.getCompletedTableName() ).getIndex(COMPLETED_TIME_INDEX);
-        List<String> results = new ArrayList<>();
-        for (Iterator<Item> i = index.query(spec).iterator(); i.hasNext();) {
-            Item item = i.next();
-            results.add( item.getString(KEY_ATTRIBUTE) );
-        }
-        return results;
+        QueryRequest queryRequest = QueryRequest.builder()
+                .tableName(queue.getCompletedTableName())
+                .keyConditionExpression("#s = :v_status and Finished < :v_cutoff")
+                .expressionAttributeNames(new HashMap<String, String>() {{
+                    put("#s", STATUS_ATTRIBUTE);
+                }})
+                .expressionAttributeValues(new HashMap<String, AttributeValue>() {{
+                    put(":v_status", AttributeValue.builder().s(StatusFlag.Completed.name()).build());
+                    put(":v_cutoff", AttributeValue.builder().n(String.valueOf(cutoff)).build());
+                }})
+                .limit(BATCH_SIZE)
+                .build();
+
+        QueryResponse queryResponse = queue.getDynamoClient().query(queryRequest);
+
+        return queryResponse.items().stream()
+                .map(item -> item.get(KEY_ATTRIBUTE).s())
+                .collect(Collectors.toList());
     }
-    
+
     private void deleteAll(List<String> deleteKeys) {
-        TableWriteItems items = new TableWriteItems( queue.getCompletedTableName() );
-        for (String key : deleteKeys) {
-            items.addPrimaryKeyToDelete( new PrimaryKey(KEY_ATTRIBUTE, key) );
-        }
+        List<WriteRequest> writeRequests = deleteKeys.stream()
+                .map(key -> WriteRequest.builder()
+                        .deleteRequest(DeleteRequest.builder()
+                                .key(new HashMap<String, AttributeValue>() {{
+                                    put(KEY_ATTRIBUTE, AttributeValue.builder().s(key).build());
+                                }})
+                                .build())
+                        .build())
+                .collect(Collectors.toList());
+
+        BatchWriteItemRequest batchWriteRequest = BatchWriteItemRequest.builder()
+                .requestItems(new HashMap<String, List<WriteRequest>>() {{
+                    put(queue.getCompletedTableName(), writeRequests);
+                }})
+                .build();
+
         try {
-            queue.dynamoDB.batchWriteItem( new BatchWriteItemSpec().withTableWriteItems(items) );
+            queue.getDynamoClient().batchWriteItem(batchWriteRequest);
         } catch (Exception e) {
             // TODO logging
         }
     }
-    
+
     private void addCompletedRequest(int i) {
         BatchRequest request = new BatchRequest("http://localhost", "p=foo&q=bar" + i);
         String key = "request" + i;

@@ -18,17 +18,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.amazonaws.services.s3.model.DeleteObjectsRequest;
-import com.amazonaws.services.s3.model.ObjectListing;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.services.s3.model.S3ObjectSummary;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.*;
+
 import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.CacheManager;
 import com.epimorphics.armlib.MediaTypes;
@@ -44,11 +43,11 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
     protected String workArea = "/tmp";
     protected String bucket;
     protected String baseKey;
-    protected Regions region = Regions.EU_WEST_1;
-    protected AmazonS3 s3client;
+    protected Region region = Region.EU_WEST_1;
+    protected S3Client s3client;
     
     public S3CacheManager() {
-        s3client = AmazonS3ClientBuilder.standard().withRegion(region).build();
+        s3client = S3Client.builder().region(region).build();
     }
     
     public void setS3BaseURL(String s3BaseURL) {
@@ -100,10 +99,11 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
 
     private boolean exists(String key) {
         try {
-            s3client.getObjectMetadata(bucket, key);
+            s3client.headObject(HeadObjectRequest.builder().bucket(bucket).key(key)
+                    .build());
             return true;
-        } catch (AmazonS3Exception e) {
-            if (e.getStatusCode() == 404) {
+        } catch (S3Exception e) {
+            if (e.awsErrorDetails().sdkHttpResponse().statusCode() == 404) {
                 return false;
             } else {
                 throw new EpiException("Problem accessing S3 bucket", e);
@@ -121,8 +121,9 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
         // Brute force since it makes three s3 calls but this is not the main interface
         String objkey = getS3Key(requestKey, suffix);
         if (objkey != null) {
-            S3Object object = s3client.getObject(bucket, objkey);
-            return object.getObjectContent();
+            ResponseInputStream<GetObjectResponse> object = s3client.getObject(GetObjectRequest.builder().bucket(bucket).key(objkey)
+                    .build());
+            return object;
         } else {
             return null;
         }
@@ -154,17 +155,18 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
     
     private void doUpload(BatchRequest request, String suffix, File result) throws IOException {
         String objkey = getS3Key(request.getKey(), suffix, request.isSticky());
-        ObjectMetadata meta = new ObjectMetadata();
+        HeadObjectResponse meta = HeadObjectResponse.builder()
+                .build();
         String contentType = MediaTypes.getMediaTypeForExtension(suffix);
         if (contentType != null){
-            meta.setContentType( contentType );
         }
         if (compress) {
-            meta.setContentEncoding("gzip");
         }
-        meta.setContentLength( result.length() );
         InputStream stream = new BufferedInputStream( new FileInputStream(result) );
-        s3client.putObject(bucket, objkey, stream, meta);
+        s3client.putObject(PutObjectRequest.builder().bucket(bucket).key(objkey).contentLength(result.length())
+                .contentEncoding("gzip")
+                .contentType("contentType")
+                .build(), RequestBody.fromInputStream(stream, result.length()));
     }
 
     @Override
@@ -177,23 +179,29 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
     public void clearNonSticky() {
         clearFolder( baseKey + TEMPORARY_SEGMENT );
     }
-    
+
     private void clearFolder(String folder) {
         List<String> toDelete = new ArrayList<>();
         do {
             toDelete.clear();
-            ObjectListing list = s3client.listObjects(bucket, folder);
-            for (S3ObjectSummary summary: list.getObjectSummaries()) {
-                toDelete.add( summary.getKey() );
+            ListObjectsRequest listObjectsRequest = ListObjectsRequest.builder()
+                    .bucket(bucket)
+                    .prefix(folder)
+                    .build();
+            ListObjectsResponse listObjectsResponse = s3client.listObjects(listObjectsRequest);
+            for (S3Object summary : listObjectsResponse.contents()) {
+                toDelete.add(summary.key());
             }
-            if ( ! toDelete.isEmpty() ) {
-                String[] keys = new String[ toDelete.size() ];
-                keys = toDelete.toArray(keys);
-                DeleteObjectsRequest request = new DeleteObjectsRequest(bucket);
-                request.withKeys(keys);
-                s3client.deleteObjects( request );
+            if (!toDelete.isEmpty()) {
+                Collection<ObjectIdentifier> identifiers = toDelete.stream()
+                        .map(key -> ObjectIdentifier.builder().key(key).build())
+                        .collect(Collectors.toList());
+                DeleteObjectsRequest deleteRequest = DeleteObjectsRequest.builder()
+                        .bucket(bucket)
+                        .delete(Delete.builder().objects(identifiers).build())
+                        .build();
+                s3client.deleteObjects(deleteRequest);
             }
-        } while ( ! toDelete.isEmpty() );
+        } while (!toDelete.isEmpty());
     }
-    
 }

@@ -9,47 +9,6 @@
 
 package com.epimorphics.armlib.impl;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.amazonaws.client.builder.AwsClientBuilder.EndpointConfiguration;
-import com.amazonaws.regions.Regions;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDB;
-import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClientBuilder;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapper;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.ConsistentReads;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBMapperConfig.TableNameOverride;
-import com.amazonaws.services.dynamodbv2.datamodeling.DynamoDBScanExpression;
-import com.amazonaws.services.dynamodbv2.document.DynamoDB;
-import com.amazonaws.services.dynamodbv2.document.Index;
-import com.amazonaws.services.dynamodbv2.document.Item;
-import com.amazonaws.services.dynamodbv2.document.PrimaryKey;
-import com.amazonaws.services.dynamodbv2.document.Table;
-import com.amazonaws.services.dynamodbv2.document.TableCollection;
-import com.amazonaws.services.dynamodbv2.document.TableWriteItems;
-import com.amazonaws.services.dynamodbv2.document.spec.BatchWriteItemSpec;
-import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
-import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
-import com.amazonaws.services.dynamodbv2.model.AttributeDefinition;
-import com.amazonaws.services.dynamodbv2.model.ConditionalCheckFailedException;
-import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
-import com.amazonaws.services.dynamodbv2.model.GlobalSecondaryIndex;
-import com.amazonaws.services.dynamodbv2.model.KeySchemaElement;
-import com.amazonaws.services.dynamodbv2.model.KeyType;
-import com.amazonaws.services.dynamodbv2.model.ListTablesResult;
-import com.amazonaws.services.dynamodbv2.model.Projection;
-import com.amazonaws.services.dynamodbv2.model.ProjectionType;
-import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughput;
-import com.amazonaws.services.dynamodbv2.model.ScalarAttributeType;
 import com.epimorphics.appbase.core.App;
 import com.epimorphics.appbase.core.ComponentBase;
 import com.epimorphics.appbase.core.Startup;
@@ -57,6 +16,17 @@ import com.epimorphics.armlib.BatchRequest;
 import com.epimorphics.armlib.BatchStatus;
 import com.epimorphics.armlib.BatchStatus.StatusFlag;
 import com.epimorphics.armlib.QueueManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
+import software.amazon.awssdk.services.dynamodb.DynamoDbClientBuilder;
+import software.amazon.awssdk.services.dynamodb.model.*;
+
+import java.net.URI;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Non-persistent, non-distributed, implementation of queue manager. Only 
@@ -78,10 +48,11 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     
     public String tablePrefix = "";
     
-    protected AmazonDynamoDB client;
-    protected DynamoDB dynamoDB;
-    protected DynamoDBMapper mapper;
-    protected Regions region = Regions.EU_WEST_1;
+    protected DynamoDbClient client;
+    protected DynamoDbEnhancedClient enhancedClient;
+//    protected DynamoDb dynamoDB;
+//    protected DynamoDBMapper mapper;
+    protected Region region = Region.EU_WEST_1;
     
     public void setCheckInterval(long checkInterval) {
         this.checkInterval = checkInterval;
@@ -106,104 +77,112 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     @Override
     public void startup(App app) {
         super.startup(app);
-        AmazonDynamoDBClientBuilder builder = AmazonDynamoDBClientBuilder.standard();
+        DynamoDbClientBuilder builder = DynamoDbClient.builder();
         if (localTestEndpoint != null) {
-            builder.setEndpointConfiguration(
-                    new EndpointConfiguration(localTestEndpoint, region.getName()) );
-        } else {
-            builder.setRegion( region.getName() );
+            builder.endpointOverride(URI.create(localTestEndpoint));
         }
+        builder.region(region);
         client = builder.build();
-        dynamoDB = new DynamoDB(client);
-        DynamoDBMapperConfig.Builder configBuilder =
-                new DynamoDBMapperConfig.Builder()
-                    .withConsistentReads( ConsistentReads.CONSISTENT );
-        if ( ! tablePrefix.isEmpty() ) {
-            configBuilder.setTableNameOverride( TableNameOverride.withTableNamePrefix(tablePrefix) );
+        DynamoDbEnhancedClient enhancedClient = DynamoDbEnhancedClient.builder()
+                .dynamoDbClient(client)
+                .build();
+        initDB();
+    }
+
+    private void initDB() {
+        ListTablesResponse tables = client.listTables();
+
+        Set<String> existingTables = new HashSet<>(tables.tableNames());
+
+        if (!existingTables.contains(getQueueTableName())) {
+            createQueueTable();
         }
-        mapper = new DynamoDBMapper(client, configBuilder.build());
-        try {
-            initDB();
-        } catch (InterruptedException e) {
-            log.error("DB initialization interrupted");
+
+        if (!existingTables.contains(getCompletedTableName())) {
+            createCompletedTable();
         }
     }
-    
-    public void initDB() throws InterruptedException {
-        TableCollection<ListTablesResult> tables = dynamoDB.listTables();
-        boolean hasInQueue = false;
-        boolean hasProcessingQueue = false;
-        for (Iterator<Table> i = tables.iterator(); i.hasNext();) {
-            String tablename = i.next().getTableName();
-            if (tablename.equals( getQueueTableName() )) hasInQueue = true;
-            if (tablename.equals( getCompletedTableName() )) hasProcessingQueue = true;
-        }
-        
-        List<Table> newTables = new ArrayList<>();
-        if (!hasInQueue) {
-            log.info("Creating " + getQueueTableName() + " table");
-            CreateTableRequest req = mapper.generateCreateTableRequest(DynQueueEntry.class);
-            req.setProvisionedThroughput(new ProvisionedThroughput(5L, 5L));
-            newTables.add( dynamoDB.createTable(req) );
-        }
-        
-        if (!hasProcessingQueue) {
-            log.info("Creating " + getCompletedTableName() + " table");
-            GlobalSecondaryIndex index = new GlobalSecondaryIndex()
-                    .withIndexName(COMPLETED_TIME_INDEX)
-                    .withProvisionedThroughput(new ProvisionedThroughput()
-                            .withReadCapacityUnits(3L)
-                            .withWriteCapacityUnits(1L))
-                    .withKeySchema(Arrays.asList( 
-                                    new KeySchemaElement(STATUS_ATTRIBUTE, KeyType.HASH),
-                                    new KeySchemaElement(FINISHED_ATTRIBUTE, KeyType.RANGE)
-                            ) )
-                    .withProjection(new Projection().withProjectionType(ProjectionType.INCLUDE).withNonKeyAttributes(KEY_ATTRIBUTE));
-            CreateTableRequest req = mapper.generateCreateTableRequest(DynCompletedEntry.class)
-                    .withAttributeDefinitions(Arrays.asList(
-                            new AttributeDefinition(STATUS_ATTRIBUTE, ScalarAttributeType.S),
-                            new AttributeDefinition(FINISHED_ATTRIBUTE, ScalarAttributeType.N),
-                            new AttributeDefinition(KEY_ATTRIBUTE, ScalarAttributeType.S)
-                            ))
-                    .withGlobalSecondaryIndexes(index)
-                    .withProvisionedThroughput(new ProvisionedThroughput(1L, 1L));
-            newTables.add( dynamoDB.createTable(req) );
-        }
-        for (Table table : newTables) {
-            table.waitForActive();
-        }
+
+    private void createQueueTable() {
+        log.info("Creating table: {}", getQueueTableName());
+        CreateTableRequest request = CreateTableRequest.builder()
+                .tableName(getQueueTableName())
+                .keySchema(KeySchemaElement.builder().attributeName(KEY_ATTRIBUTE).keyType(KeyType.HASH).build())
+                .attributeDefinitions(AttributeDefinition.builder()
+                        .attributeName(KEY_ATTRIBUTE)
+                        .attributeType(ScalarAttributeType.S)
+                        .build())
+                .provisionedThroughput(ProvisionedThroughput.builder()
+                        .readCapacityUnits(5L)
+                        .writeCapacityUnits(5L)
+                        .build())
+                .build();
+        client.createTable(request);
     }
-    
+
+    private void createCompletedTable() {
+        log.info("Creating table: {}", getCompletedTableName());
+        CreateTableRequest request = CreateTableRequest.builder()
+                .tableName(getCompletedTableName())
+                .keySchema(KeySchemaElement.builder().attributeName(KEY_ATTRIBUTE).keyType(KeyType.HASH).build())
+                .attributeDefinitions(
+                        AttributeDefinition.builder()
+                                .attributeName(KEY_ATTRIBUTE)
+                                .attributeType(ScalarAttributeType.S)
+                                .build(),
+                        AttributeDefinition.builder()
+                                .attributeName(STATUS_ATTRIBUTE)
+                                .attributeType(ScalarAttributeType.S)
+                                .build(),
+                        AttributeDefinition.builder()
+                                .attributeName(FINISHED_ATTRIBUTE)
+                                .attributeType(ScalarAttributeType.N)
+                                .build()
+                )
+                .globalSecondaryIndexes(GlobalSecondaryIndex.builder()
+                        .indexName(COMPLETED_TIME_INDEX)
+                        .keySchema(
+                                KeySchemaElement.builder().attributeName(STATUS_ATTRIBUTE).keyType(KeyType.HASH).build(),
+                                KeySchemaElement.builder().attributeName(FINISHED_ATTRIBUTE).keyType(KeyType.RANGE).build()
+                        )
+                        .projection(
+                                Projection.builder().projectionType(ProjectionType.INCLUDE).nonKeyAttributes(KEY_ATTRIBUTE).build()
+                        )
+                        .provisionedThroughput(ProvisionedThroughput.builder()
+                                .readCapacityUnits(3L)
+                                .writeCapacityUnits(1L)
+                                .build())
+                        .build())
+                .provisionedThroughput(ProvisionedThroughput.builder()
+                        .readCapacityUnits(5L)
+                        .writeCapacityUnits(5L)
+                        .build())
+                .build();
+        client.createTable(request);
+    }
+
     @Override
     public BatchStatus submit(BatchRequest request) {
         DynQueueEntry entry = find(request.getKey());
         if (entry == null || entry.getStatus() == StatusFlag.Failed) {
-            if (entry != null) {
-                try {
-                    mapper.delete(entry);
-                } catch (ConditionalCheckFailedException e) {
-                    log.warn("Suppressing duplicate submit of request: " + request.getKey());
-                }
-            }
-            entry = new DynQueueEntry(request);  
-            try {
-                mapper.save(entry);
-            } catch (ConditionalCheckFailedException e) {
-                log.warn("Suppressing duplicate submit of request: " + request.getKey());
-            }
+            if (entry != null) delete(entry.key);
+            entry = new DynQueueEntry(request);
+            saveEntry(entry, getQueueTableName());
             return new BatchStatus(request.getKey(), StatusFlag.Pending);
         } else {
             return entry.getBatchStatus();
         }
     }
-    
     public List<DynQueueEntry> getRawQueue() {
-        List<DynQueueEntry> entries = new ArrayList<>( 
-                mapper.scan(DynQueueEntry.class, 
-                        new DynamoDBScanExpression() ) );
-        Collections.sort(entries);
-        return entries;
-    }    
+        ScanRequest scanRequest = ScanRequest.builder()
+                .tableName(getQueueTableName())
+                .build();
+        return client.scan(scanRequest)
+                .items()
+                .stream()
+                .map(DynQueueEntry::fromItemMap)
+                .collect(Collectors.toList());
+    }
     
     @Override
     public List<BatchStatus> getQueue() {
@@ -222,7 +201,7 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
                 entry.setStarted();
                 BatchRequest request = entry.getBatchRequest(); 
                 try {
-                    mapper.save(entry);
+                    saveEntry(entry, getQueueTableName());
                 } catch (ConditionalCheckFailedException e) {
                     // This entry was started by someone else after all, skip it
                 }
@@ -260,13 +239,33 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     }
 
     private DynQueueEntry find(String requestKey) {
-        DynQueueEntry entry = mapper.load(DynQueueEntry.class, requestKey);
+        DynQueueEntry entry = findEntry(requestKey);
         if (entry == null){
-            entry = mapper.load(DynCompletedEntry.class, requestKey);
+            entry = findCompletedEntry(requestKey);
         }
         return entry;
     }
-    
+
+    private DynQueueEntry findEntry(String key) {
+        GetItemRequest request = GetItemRequest.builder()
+                .tableName(getQueueTableName())
+                .key(Collections.singletonMap(KEY_ATTRIBUTE, AttributeValue.builder().s(key).build()))
+                .build();
+
+        Map<String, AttributeValue> item = client.getItem(request).item();
+        return !item.isEmpty() ? DynQueueEntry.fromItemMap(item) : null;
+    }
+
+    private DynCompletedEntry findCompletedEntry(String key) {
+        GetItemRequest request = GetItemRequest.builder()
+                .tableName(getCompletedTableName())
+                .key(Collections.singletonMap(KEY_ATTRIBUTE, AttributeValue.builder().s(key).build()))
+                .build();
+
+        Map<String, AttributeValue> item = client.getItem(request).item();
+        return !item.isEmpty() ? DynCompletedEntry.fromItemMap(item) : null;
+    }
+
     @Override
     public BatchRequest findRequest(String key) {
         DynQueueEntry entry = find(key);
@@ -279,47 +278,48 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     
     @Override
     public void finishRequest(String key) {
-        DynQueueEntry entry = mapper.load(DynQueueEntry.class, key);
+        DynQueueEntry entry = findEntry(key);
         if (entry == null) {
             log.error("Request has been lost, can't mark as finished: " + key);
         } else {
-            mapper.delete(entry);
+            deleteEntry(key, getQueueTableName());
             DynCompletedEntry completed = new DynCompletedEntry(entry);
-            mapper.save(completed);
+            completed.setStatusStr(StatusFlag.Completed.name());
+            saveEntry(completed, getCompletedTableName());
         }
     }
 
     @Override
     public void abortRequest(String key) {
-        DynQueueEntry entry = mapper.load(DynQueueEntry.class, key);
+        DynQueueEntry entry = findEntry(key);
         if (entry == null) {
             log.error("Request has been lost, can't abort: " + key);
         } else {
             entry.setStatusStr( StatusFlag.Pending.name() );
             entry.setStarted(null);
-            mapper.save(entry);
+            saveEntry(entry, getQueueTableName());
         }
     }
 
     @Override
     public void failRequest(String key) {
-        DynQueueEntry entry = mapper.load(DynQueueEntry.class, key);
+        DynQueueEntry entry = findEntry(key);
         if (entry == null) {
-            log.error("Request has been lost, can't mark as failed: " + key);
+            log.error("Request has been lost, can't mark as failed: {}", key);
         } else {
-            mapper.delete(entry);
+            deleteEntry(entry.key, getQueueTableName());
             DynCompletedEntry completed = new DynCompletedEntry(entry);
             completed.setStatusStr(StatusFlag.Failed.name());
-            mapper.save(completed);
+            saveEntry(completed, getCompletedTableName());
         }
     }
-    
+
     @Override
     public BatchStatus resubmit(BatchRequest request) {
-        DynCompletedEntry entry = mapper.load(DynCompletedEntry.class, request.getKey());
+        DynCompletedEntry entry = findCompletedEntry(request.getKey());
         if (entry != null) {
             // Clear out any old copy
-            mapper.delete(entry);
+            deleteEntry(entry.key, getCompletedTableName());
         }
         return submit(request);
     }
@@ -327,54 +327,73 @@ public class DynQueueManager extends ComponentBase implements QueueManager, Star
     @Override
     public void removeOldCompletedRequests(long cutoff) {
         long count = 0;
-        
+
         while(true) {
             List<String> toDelete = listCompletedOlderThan(cutoff);
             if (toDelete.isEmpty()) break;
             count += toDelete.size();
-            deleteAll(toDelete);
+            for (String key : toDelete) {
+                deleteEntry(key, getCompletedTableName());
+            }
         }
-        log.info("Cleanup deleted " + count + " old records of completed requests");
+        log.info("Cleanup deleted {} old records of completed requests", count);
     }
     
     protected final int BATCH_SIZE = 20;  // Can't be more than 25
-    
+
     private List<String> listCompletedOlderThan(long cutoff) {
-        Map<String, String> nameMap = new HashMap<>();
-        nameMap.put("#s", STATUS_ATTRIBUTE);
-        QuerySpec spec = new QuerySpec()
-                .withMaxResultSize(BATCH_SIZE)
-                .withKeyConditionExpression("#s = :v_status and Finished < :v_cutoff")
-                        .withValueMap(new ValueMap()
-                                .withString(":v_status", StatusFlag.Completed.name())
-                                .withNumber(":v_cutoff", cutoff))
-                        .withNameMap(nameMap);
-        Index index = dynamoDB.getTable( getCompletedTableName() ).getIndex(COMPLETED_TIME_INDEX);
-        List<String> results = new ArrayList<>();
-        for (Iterator<Item> i = index.query(spec).iterator(); i.hasNext();) {
-            Item item = i.next();
-            results.add( item.getString(KEY_ATTRIBUTE) );
-        }
-        return results;
+        QueryRequest request = QueryRequest.builder()
+                .tableName(getCompletedTableName())
+                .limit(BATCH_SIZE)
+                .indexName(COMPLETED_TIME_INDEX)
+                .expressionAttributeNames(new HashMap<String, String>() {{
+                    put("#status", STATUS_ATTRIBUTE);
+                    put("#finished", FINISHED_ATTRIBUTE);
+                }})
+                .expressionAttributeValues(new HashMap<String, AttributeValue>() {{
+                    put(":v_status", AttributeValue.builder().s(StatusFlag.Completed.name()).build());
+                    put(":v_cutoff", AttributeValue.builder().n(Long.toString(cutoff)).build());
+                }})
+                .keyConditionExpression("#status = :v_status AND #finished < :v_cutoff")
+                .build();
+        return client.query(request)
+                .items()
+                .stream()
+                .map(item -> item.get(KEY_ATTRIBUTE).s())
+                .collect(Collectors.toList());
     }
-    
-    private void deleteAll(List<String> deleteKeys) {
-        TableWriteItems items = new TableWriteItems( getCompletedTableName() );
-        for (String key : deleteKeys) {
-            items.addPrimaryKeyToDelete( new PrimaryKey(KEY_ATTRIBUTE, key) );
-        }
+
+    private void saveEntry(DynQueueEntry entry, String tableName) {
+        Map<String, AttributeValue> itemMap = entry.toItemMap();
+        client.putItem(PutItemRequest.builder()
+                .tableName(tableName)
+                .item(itemMap)
+                .build());
+    }
+
+    private void delete(String key) {
         try {
-            dynamoDB.batchWriteItem( new BatchWriteItemSpec().withTableWriteItems(items) );
-        } catch (Exception e) {
-            log.error("Problem deleting old completed records", e);
+            deleteEntry(key, getQueueTableName());
+        } catch (Exception ex1) {
+            try {
+                deleteEntry(key, getQueueTableName());
+            } catch (Exception ex2) {
+                log.error("Failed to delete key {} from both {} and {} tables", key, getQueueTableName(), getCompletedTableName());
+            }
         }
     }
-    
+
+    private void deleteEntry(String key, String tableName) {
+        client.deleteItem(DeleteItemRequest.builder()
+                .tableName(tableName)
+                .key(Collections.singletonMap(KEY_ATTRIBUTE, AttributeValue.builder().s(key).build()))
+                .build());
+    }
     /**
      * Exposed only for testing purposes
      * @return
      */
-    public AmazonDynamoDB getDynamoClient() {
+    public DynamoDbClient getDynamoClient() {
         return client;
     }
     
