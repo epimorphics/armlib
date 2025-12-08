@@ -17,8 +17,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
-    <appbase.version>4.0.0-SNAPSHOT</appbase.version>
+    <appbase.version>4.0.0</appbase.version>
     <jersey.version>3.1.11</jersey.version>
+    <aws.sdk.version>2.39.6</aws.sdk.version>
   </properties>
 
   <repositories>
@@ -102,13 +103,13 @@
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>s3</artifactId>
-      <version>2.33.13</version>
+      <version>${aws.sdk.version}</version>
     </dependency>
 
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
       <artifactId>dynamodb-enhanced</artifactId>
-      <version>2.33.13</version>
+      <version>${aws.sdk.version}</version>
     </dependency>
 
     <dependency>
@@ -133,7 +134,7 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.5.20</version>
+      <version>1.5.21</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
