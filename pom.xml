@@ -9,7 +9,7 @@
   <description>Asynchronous Request Management library</description>
 
   <scm>
-    <developerConnection>scm:git:ssh://git@github.com:epimorphics/armlib.git</developerConnection>
+    <developerConnection>scm:git:git@github.com:epimorphics/armlib.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
