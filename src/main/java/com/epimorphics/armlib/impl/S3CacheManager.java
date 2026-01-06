@@ -158,15 +158,15 @@ public class S3CacheManager extends BaseCacheManager implements CacheManager {
         HeadObjectResponse meta = HeadObjectResponse.builder()
                 .build();
         String contentType = MediaTypes.getMediaTypeForExtension(suffix);
-        if (contentType != null){
+        PutObjectRequest.Builder requestBuilder = PutObjectRequest.builder().bucket(bucket).key(objkey).contentLength(result.length());
+        if (contentType != null) {
+            requestBuilder = requestBuilder.contentType(contentType);
         }
         if (compress) {
+            requestBuilder = requestBuilder.contentEncoding("gzip");
         }
         InputStream stream = new BufferedInputStream( new FileInputStream(result) );
-        s3client.putObject(PutObjectRequest.builder().bucket(bucket).key(objkey).contentLength(result.length())
-                .contentEncoding("gzip")
-                .contentType("contentType")
-                .build(), RequestBody.fromInputStream(stream, result.length()));
+        s3client.putObject(requestBuilder.build(), RequestBody.fromInputStream(stream, result.length()));
     }
 
     @Override

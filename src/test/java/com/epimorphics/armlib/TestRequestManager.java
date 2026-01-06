@@ -24,6 +24,7 @@ import software.amazon.awssdk.services.dynamodb.model.ScanResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
@@ -202,7 +203,7 @@ public class TestRequestManager {
         if (cm.isCompressed()) {
             in = new GZIPInputStream(in);
         }
-        String value = FileManager.get().readWholeFileAsUTF8(in);
+        String value = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         assertEquals("Test1 result", value);
 
         // Get next request but fail it
