@@ -2,14 +2,14 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.epimorphics</groupId>
   <artifactId>armlib</artifactId>
-  <version>1.0.1</version>
+  <version>1.0.2-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>armlib</name>
   <description>Asynchronous Request Management library</description>
 
   <scm>
     <developerConnection>scm:git:git@github.com:epimorphics/armlib.git</developerConnection>
-    <tag>armlib-1.0.1</tag>
+    <tag>HEAD</tag>
   </scm>
 
   <properties>
