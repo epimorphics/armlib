@@ -14,6 +14,6 @@ For production use any server may receive queue requests and any server may proc
 
 ## Use
 
-The calling application should configure  an the use of the `armlib` services and plug in the appropriate queue and cache implementation using an `app.conf` file. This is normally done by instantiating a `StandardRequestManager` though it is possible to plug-in an alternative implementation of the `RequestManager` interface.
+The calling application should configure the use of the `armlib` services and plug in the appropriate queue and cache implementation using an `app.conf` file. This is normally done by instantiating a `StandardRequestManager` though it is possible to plug-in an alternative implementation of the `RequestManager` interface.
 
 The calling application should construct instances of `BatchRequest` to represent a request to queue. Batch requests are essentially formatted as web requests with an option `sticky` flag to indicate the preferred caching lifetime. These requests should then be submitted to `armlib` using the `RequestManager` interface, which also supports status tracking and cache access.

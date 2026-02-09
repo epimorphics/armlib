@@ -18,7 +18,7 @@
     <maven.compiler.target>21</maven.compiler.target>
     <appbase.version>4.0.0</appbase.version>
     <jersey.version>3.1.11</jersey.version>
-    <aws.sdk.version>2.39.6</aws.sdk.version>
+    <aws.sdk.version>2.41.24</aws.sdk.version>
   </properties>
 
   <repositories>
@@ -104,6 +104,12 @@
       <artifactId>s3</artifactId>
       <version>${aws.sdk.version}</version>
     </dependency>
+
+      <dependency>
+          <groupId>io.netty</groupId>
+          <artifactId>netty-codec-http</artifactId>
+          <version>4.1.129.Final</version>
+      </dependency>
 
     <dependency>
       <groupId>software.amazon.awssdk</groupId>
