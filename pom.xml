@@ -16,9 +16,10 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
-    <appbase.version>4.0.0</appbase.version>
+    <appbase.version>4.0.1</appbase.version>
     <jersey.version>3.1.11</jersey.version>
     <aws.sdk.version>2.41.24</aws.sdk.version>
+      <logback.version>1.5.32</logback.version>
   </properties>
 
   <repositories>
@@ -139,7 +140,7 @@
     <dependency>
       <groupId>ch.qos.logback</groupId>
       <artifactId>logback-classic</artifactId>
-      <version>1.5.21</version>
+      <version>${logback.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
