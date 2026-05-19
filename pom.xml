@@ -16,10 +16,11 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <maven.compiler.source>21</maven.compiler.source>
     <maven.compiler.target>21</maven.compiler.target>
-    <appbase.version>4.0.1</appbase.version>
+    <appbase.version>4.0.4</appbase.version>
     <jersey.version>3.1.11</jersey.version>
-    <aws.sdk.version>2.41.24</aws.sdk.version>
+    <aws.sdk.version>2.44.8</aws.sdk.version>
       <logback.version>1.5.32</logback.version>
+      <netty.version>4.1.133.Final</netty.version>
   </properties>
 
   <repositories>
@@ -109,7 +110,7 @@
       <dependency>
           <groupId>io.netty</groupId>
           <artifactId>netty-codec-http</artifactId>
-          <version>4.1.132.Final</version>
+          <version>${netty.version}</version>
       </dependency>
 
     <dependency>
