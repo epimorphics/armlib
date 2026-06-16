@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+* bump Netty to 4.1.135.Final toi address CVEs
+
 ## [1.0.4] - 2026-05-19
 
 ### Security
