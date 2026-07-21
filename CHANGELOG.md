@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.0.6] - 2026-07-21
+
+* bump logback to 1.5.38 for CVEs
+* bump appbase to 4.0.6 to pull in updated Jackson dependencies
+
 ## [1.0.5] - 2026-07-09
 
 * bump Netty to 4.1.135.Final to address CVEs
