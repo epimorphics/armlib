@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+* bump netty to 4.1.136.Final
+
 ## [1.0.6] - 2026-07-21
 
 * bump logback to 1.5.38 for CVEs
