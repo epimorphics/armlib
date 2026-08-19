@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## [1.0.8] - 2026-08-19
+
+* bump appbase to 4.0.7 for transitive vulnerabilities
+* bump AWS SDK to 2.53.1 for transitive vulnerabilities
+
 ## [1.0.7] - 2026-07-28
 
 * bump netty to 4.1.136.Final
