@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+* Update appbase to 4.0.8 to address transitive vulnerabilities.
+
 ## [1.0.8] - 2026-08-19
 
 * bump appbase to 4.0.7 for transitive vulnerabilities
