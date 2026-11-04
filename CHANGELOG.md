@@ -5,6 +5,11 @@ All notable changes to this project from 2026-05-19 onward will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+* Update appbase to 4.0.11 to address transitive vulnerabilities.
+* Update logback to 1.6.6 to address vulnerabilities.
+
 ## [1.0.10] - 2026-09-21
 
 * Update appbase to 4.0.9 to address transitive vulnerabilities.
